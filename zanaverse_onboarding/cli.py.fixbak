@@ -1,0 +1,359 @@
+import os, json, glob
+import frappe
+from frappe.exceptions import DuplicateEntryError
+
+try:
+    import yaml
+except Exception:
+    yaml = None
+
+# Use the app root (stable across benches)
+APP_ROOT = frappe.get_app_path("zanaverse_onboarding")
+BP_ROOT  = os.path.join(APP_ROOT, "blueprints")
+
+def _read_yaml(path):
+    if not os.path.exists(path): return {"docs": []}
+    with open(path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+    if "docs" not in data: data["docs"] = []
+    return data
+
+def _ensure_name(d: dict) -> dict:
+    # Ensure every doc has a stable 'name'. Fallbacks for common doctypes.# 
+    if d.get("name"):
+        return d
+    # Generic fallback
+    if d.get("title"):
+        d["name"] = d["title"]
+    # Sales Taxes and Charges Template => prefer 'Title - Company' as a deterministic name
+    if d.get("doctype") == "Sales Taxes and Charges Template" and d.get("title"):
+        nm = d["title"]
+        if d.get("company"):
+            nm = f"{nm} - {d['company']}"
+        d["name"] = nm
+    return d
+
+def _ensure_required_fields(d: dict) -> dict:
+    # Auto-populate commonly required fields so YAML stays DRY.# 
+    dt = d.get("doctype")
+    if dt == "Brand":
+        d.setdefault("brand", d.get("name"))
+    if dt == "Company":
+        d.setdefault("company_name", d.get("name"))
+    if dt == "Sales Taxes and Charges Template":
+        d.setdefault("title", d.get("name"))
+    return d
+
+def _resolve_tax_template_name(d: dict) -> str | None:
+    # Find existing Sales Tax Template by (title, company) or common name patterns.# 
+    if d.get("doctype") != "Sales Taxes and Charges Template":
+        return None
+    title = d.get("title") or d.get("name")
+    if not title:
+        return None
+    company = d.get("company")
+    # 1) Exact field match on title (+ company)
+    filters = {"title": title}
+    if company:
+        filters["company"] = company
+    existing = frappe.db.get_value("Sales Taxes and Charges Template", filters, "name")
+    if existing:
+        return existing
+    # 2) Common name patterns
+    candidates = [title]
+    if company:
+        candidates.append(f"{title} - {company}")
+        abbr = frappe.db.get_value("Company", company, "abbr")
+        if abbr:
+            candidates.append(f"{title} - {abbr}")
+    for nm in candidates:
+        if frappe.db.exists("Sales Taxes and Charges Template", nm):
+            return nm
+    return None
+
+def _merge_docs(doc_sets):
+    merged = {}
+    for ds in doc_sets:
+        for d in ds.get("docs", []):
+            d = dict(d)  # copy
+            d = _ensure_name(d)
+            d = _ensure_required_fields(d)
+            doctype, name = d.get("doctype"), d.get("name")
+            if not doctype or not name:
+                frappe.throw(f"Each doc needs doctype+name (or title): {d}")
+            key = (doctype, name)
+            base = merged.get(key, {})
+            merged[key] = {**base, **d}
+    return list(merged.values())
+
+def _collect_blueprint(client_slug):
+    templates = [
+        os.path.join(BP_ROOT, "_templates", "default_three_brands.yaml"),
+        os.path.join(BP_ROOT, "_templates", "africa_defaults.yaml"),
+    ]
+    client_dir = os.path.join(BP_ROOT, client_slug)
+    client_files = sorted(glob.glob(os.path.join(client_dir, "*.yaml")))
+    doc_sets = [_read_yaml(p) for p in templates + client_files]
+    docs = _merge_docs(doc_sets)
+    assets_dir = os.path.join(client_dir, "assets")
+    return docs, assets_dir
+
+def _plan_changes(docs):
+    plan = {"create": [], "update": [], "noop": []}
+    for d in docs:
+        d = dict(d)
+        doctype, name = d["doctype"], d["name"]
+
+        # Special resolution for Sales Taxes and Charges Template
+        if doctype == "Sales Taxes and Charges Template":
+            resolved = _resolve_tax_template_name(d)
+            if resolved:
+                name = resolved
+                d["name"] = resolved
+
+        exists = frappe.db.exists(doctype, name)
+        if not exists:
+            plan["create"].append(d)
+        else:
+            current = frappe.get_doc(doctype, name).as_dict()
+            delta = {k: v for k, v in d.items() if k not in ("doctype","name") and current.get(k) != v}
+            if delta:
+                plan["update"].append({"doctype": doctype, "name": name, **delta})
+            else:
+                plan["noop"].append({"doctype": doctype, "name": name})
+    return plan
+
+def _apply_plan(plan):
+    applied = {"created": [], "updated": []}
+    for d in plan["create"]:
+        payload = dict(d)
+        # Let ERPNext autoname Sales Tax Template; if dup, fall back to update
+        if payload["doctype"] == "Sales Taxes and Charges Template":
+            payload.pop("name", None)
+        try:
+            doc = frappe.get_doc(payload)
+            doc.insert(ignore_permissions=True)
+            applied["created"].append((payload["doctype"], doc.name))
+        except DuplicateEntryError:
+            if payload["doctype"] == "Sales Taxes and Charges Template":
+                existing = _resolve_tax_template_name(d)  # use original d for title/company
+                if existing:
+                    doc = frappe.get_doc(payload["doctype"], existing)
+                    for k, v in d.items():
+                        if k in ("doctype","name"): continue
+                        doc.set(k, v)
+                    doc.save(ignore_permissions=True)
+                    applied["updated"].append((payload["doctype"], existing))
+                else:
+                    raise
+            else:
+                raise
+    for d in plan["update"]:
+        doc = frappe.get_doc(d["doctype"], d["name"])
+        for k, v in d.items():
+            if k in ("doctype","name"): continue
+            doc.set(k, v)
+        doc.save(ignore_permissions=True)
+        applied["updated"].append((d["doctype"], d["name"]))
+    frappe.db.commit()
+    return applied
+
+def _ensure_letterhead(image_path, name="Default Letter Head"):
+    from frappe.utils.file_manager import save_file
+    doctype = "Letter Head"
+    if frappe.db.exists(doctype, name):
+        lh = frappe.get_doc(doctype, name)
+    else:
+        lh = frappe.get_doc({"doctype": doctype, "letter_head_name": name, "is_default": 1})
+        lh.insert(ignore_permissions=True)
+    with open(image_path, "rb") as f:
+        filedoc = save_file(os.path.basename(image_path), f.read(), doctype, lh.name, is_private=0)
+    lh.source = "Image"
+    lh.image = filedoc.file_url
+    lh.save(ignore_permissions=True)
+    frappe.db.commit()
+
+def _ensure_baselines():
+    # Seed minimal masters ERPNext expects so Company creation never fails.# 
+    if frappe.db.exists("DocType", "Warehouse Type"):
+        needed = ["Transit", "Finished Goods", "Work In Progress", "Stores"]
+        for wt in needed:
+            if not frappe.db.exists("Warehouse Type", wt):
+                # tolerate fieldname differences across versions
+                try:
+                    frappe.get_doc({"doctype": "Warehouse Type", "name": wt}).insert(ignore_permissions=True)
+                except Exception:
+                    try:
+                        frappe.get_doc({"doctype": "Warehouse Type", "warehouse_type_name": wt}).insert(ignore_permissions=True)
+                    except Exception:
+                        frappe.log_error(frappe.get_traceback(), f"Seed Warehouse Type failed: {wt}")
+        frappe.db.commit()
+
+def _safe_log(*a, **kw):
+    # Lazy, layout-agnostic import so logging never blocks provisioning.# 
+    try:
+        try:
+            from .zanaverse_onboarding.doctype.provision_log.provision_log import make_log
+        except Exception:
+            from .doctype.provision_log.provision_log import make_log
+        return make_log(*a, **kw)
+    except Exception:
+        frappe.log_error(frappe.get_traceback(), "ProvisionLog write failed")
+        return None
+
+def provision(blueprint: str, dry_run: int = 0, commit_sha: str = None):
+    # 
+    bench --site <site> execute zanaverse_onboarding.cli.provision --kwargs "{'blueprint':'mtc','dry_run':1}"
+    # 
+    site = frappe.local.site
+    docs, assets_dir = _collect_blueprint(blueprint)
+    plan = _plan_changes(docs)
+    summary = (f"Create: {len(plan['create'])}, Update: {len(plan['update'])}, "
+               f"Noop: {len(plan['noop'])}")
+
+    if int(dry_run):
+        _safe_log(site, blueprint, True, summary, plan, "DRY-RUN", commit_sha)
+        print(json.dumps({"summary": summary, "plan": plan}, indent=2))
+        return plan
+
+    _ensure_baselines()  # make Company creation safe
+    applied = _apply_plan(plan)
+
+
+    _safe_log(site, blueprint, False, summary, plan, "SUCCESS", commit_sha)
+    print(json.dumps({"summary": summary, "applied": applied}, indent=2))
+    return {"summary": summary, "applied": applied}
+
+# -------- Letterhead helpers (multi-company + brand) --------
+
+def _has_field(doctype, fieldname):
+    try:
+        return bool(frappe.get_meta(doctype).get_field(fieldname))
+    except Exception:
+        return False
+
+def _ensure_letterhead_record(name, image_path, company=None, brand=None, is_default=0):
+    # create/update a Letter Head + attach image
+    from frappe.utils.file_manager import save_file
+    doctype = "Letter Head"
+
+    if frappe.db.exists(doctype, name):
+        lh = frappe.get_doc(doctype, name)
+    else:
+        payload = {"doctype": doctype, "letter_head_name": name}
+        if company and _has_field(doctype, "company"):
+            payload["company"] = company
+        lh = frappe.get_doc(payload)
+        lh.insert(ignore_permissions=True)
+
+    with open(image_path, "rb") as f:
+        filedoc = save_file(os.path.basename(image_path), f.read(), doctype, lh.name, is_private=0)
+
+    lh.source = "Image"
+    lh.image = filedoc.file_url
+
+    if company and _has_field(doctype, "company"):
+        lh.company = company
+    if brand and _has_field(doctype, "brand"):
+        lh.brand = brand
+    if is_default and _has_field(doctype, "is_default"):
+        lh.is_default = 1
+
+    lh.save(ignore_permissions=True)
+
+def _ensure_letterheads(docs, assets_dir):
+    # Scans assets:
+         - assets/letterheads/company/<Company>[-default].<ext>
+         - assets/letterheads/brand/<Brand>.<ext>
+       Creates/updates Letter Heads. Skips company files if Company doesn't exist yet.
+
+    base = os.path.join(assets_dir, "letterheads")
+    exts = ("*.png","*.jpg","*.jpeg","*.svg","*.webp","*.gif")
+
+    # per-company
+    comp_dir = os.path.join(base, "company")
+    for pat in exts:
+        for path in glob.glob(os.path.join(comp_dir, pat)):
+            stem = os.path.splitext(os.path.basename(path))[0]
+            is_default = stem.endswith("-default")
+            if is_default:
+                stem = stem[:-8]  # strip "-default"
+            company_name = stem
+            if not frappe.db.exists("Company", company_name):
+                # company not in DB yet; skip safely
+                continue
+            lh_name = f"{company_name} Letter Head"
+            _ensure_letterhead_record(lh_name, path, company=company_name, brand=None, is_default=1 if is_default else 0)
+
+    # per-brand (shared)
+    brand_dir = os.path.join(base, "brand")
+    for pat in exts:
+        for path in glob.glob(os.path.join(brand_dir, pat)):
+            brand_name = os.path.splitext(os.path.basename(path))[0]
+            lh_name = f"{brand_name} Brand Letter Head"
+            _ensure_letterhead_record(lh_name, path, company=None, brand=brand_name, is_default=0)
+
+    # single-file fallback
+
+# -------- /Letterhead helpers --------
+# -------- Letterhead helpers (multi-company + brand) --------
+def _has_field(doctype, fieldname):
+    try:
+        return bool(frappe.get_meta(doctype).get_field(fieldname))
+    except Exception:
+        return False
+
+def _ensure_letterhead_record(name, image_path, company=None, brand=None, is_default=0):
+    from frappe.utils.file_manager import save_file
+    doctype = "Letter Head"
+    if frappe.db.exists(doctype, name):
+        lh = frappe.get_doc(doctype, name)
+    else:
+        payload = {"doctype": doctype, "letter_head_name": name}
+        if company and _has_field(doctype, "company"):
+            payload["company"] = company
+        lh = frappe.get_doc(payload)
+        lh.insert(ignore_permissions=True)
+    with open(image_path, "rb") as f:
+        filedoc = save_file(os.path.basename(image_path), f.read(), doctype, lh.name, is_private=0)
+    lh.source = "Image"
+    lh.image = filedoc.file_url
+    if company and _has_field(doctype, "company"):
+        lh.company = company
+    if brand and _has_field(doctype, "brand"):
+        lh.brand = brand
+    if is_default and _has_field(doctype, "is_default"):
+        lh.is_default = 1
+    lh.save(ignore_permissions=True)
+
+def _ensure_letterheads(docs, assets_dir):
+    # Scans:
+    #   assets/letterheads/company/<Company>[-default].<ext>
+    #   assets/letterheads/brand/<Brand>.<ext>
+    # Idempotent. Skips company files if Company doesn't exist yet.
+    import glob
+    base = os.path.join(assets_dir, "letterheads")
+    exts = ("*.png","*.jpg","*.jpeg","*.svg","*.webp","*.gif")
+
+    # per-company
+    comp_dir = os.path.join(base, "company")
+    for pat in exts:
+        for path in glob.glob(os.path.join(comp_dir, pat)):
+            stem = os.path.splitext(os.path.basename(path))[0]
+            is_default = stem.endswith("-default")
+            if is_default:
+                stem = stem[:-8]
+            company_name = stem
+            if not frappe.db.exists("Company", company_name):
+                continue
+            lh_name = f"{company_name} Letter Head"
+            _ensure_letterhead_record(lh_name, path, company=company_name, brand=None, is_default=1 if is_default else 0)
+
+    # per-brand (shared)
+    brand_dir = os.path.join(base, "brand")
+    for pat in exts:
+        for path in glob.glob(os.path.join(brand_dir, pat)):
+            brand_name = os.path.splitext(os.path.basename(path))[0]
+            lh_name = f"{brand_name} Brand Letter Head"
+            _ensure_letterhead_record(lh_name, path, company=None, brand=brand_name, is_default=0)
+# -------- /Letterhead helpers --------

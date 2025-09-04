@@ -1,0 +1,75 @@
+# --- Blueprint enforcement (UI <-> YAML reconciliation)
+enforcement:
+  managed_only: true
+  protect_roles: ["System Manager", "Administrator"]
+  sections:
+    users:
+      mode: append            # only add users from YAML; never delete existing UI users
+    roles:
+      mode: sync              # ensure roles exist with given flags
+      strategy: union_only    # never remove existing role perms; only add/union
+    user_permissions:
+      mode: sync
+      delete: false           # don't delete UPs created in the UI
+
+# --- Permission policy (consumed by zanaverse_onboarding.permissions)
+sensitive_roles:
+  "Employee":                        ["HR Manager", "HR Assistant"]
+  "Salary Slip":                     ["HR Manager", "Payroll Manager"]
+  "Payroll Entry":                   ["HR Manager", "Payroll Manager"]
+  "Employee Benefit Application":    ["HR Manager"]
+  "Expense Claim":                   ["HR Manager", "Accounts Manager", "Expense Approver"]
+  "Journal Entry":                   ["Accounts Manager"]
+  "Payment Entry":                   ["Accounts Manager"]
+  "Project":                         ["Projects Manager"]      # managers see all Projects (optional)
+  "Timesheet":                       ["Projects Manager"]      # managers see all Timesheets (optional)
+
+# When true: users without Company User Permissions see nothing on PQC doctypes.
+# When false (default): empty PQC => no extra filter.
+strict_default_deny: true
+
+# Per-doctype PQC config. Company-only scoping (brand_field is blank).
+pqc_doctypes:
+  # CRM / Sales
+  "Lead":             { enabled: true,  company_field: company, brand_field: "" }
+  "Opportunity":      { enabled: true,  company_field: company, brand_field: "" }
+  "Customer":         { enabled: true,  company_field: "",      brand_field: "" }   # Customer has no native Company
+  "Quotation":        { enabled: true,  company_field: company, brand_field: "" }
+  "Sales Order":      { enabled: true,  company_field: company, brand_field: "" }
+  "Sales Invoice":    { enabled: true,  company_field: company, brand_field: "" }
+  "Delivery Note":    { enabled: true,  company_field: company, brand_field: "" }
+  "Payment Entry":    { enabled: true,  company_field: company, brand_field: "" }
+
+  # Buying
+  "Supplier":             { enabled: false, company_field: "",       brand_field: "" }  # usually global
+  "Supplier Quotation":   { enabled: true,  company_field: company,  brand_field: "" }
+  "Purchase Order":       { enabled: true,  company_field: company,  brand_field: "" }
+  "Purchase Receipt":     { enabled: true,  company_field: company,  brand_field: "" }
+  "Purchase Invoice":     { enabled: true,  company_field: company,  brand_field: "" }
+
+  # Stock / Operations
+  "Warehouse":            { enabled: true,  company_field: company,  brand_field: "" }  # belongs to Company
+  "Stock Entry":          { enabled: true,  company_field: company,  brand_field: "" }
+  "Stock Ledger Entry":   { enabled: true,  company_field: company,  brand_field: "" }
+  "Item":                 { enabled: false, company_field: "",       brand_field: "" }  # often global; enable if needed
+
+  # Projects (collab logic is in permissions.py; still apply company scoping)
+  "Project":              { enabled: true,  company_field: company,  brand_field: "" }
+  "Task":                 { enabled: true,  company_field: company,  brand_field: "" }
+  "Timesheet":            { enabled: true,  company_field: company,  brand_field: "" }
+
+  # HR / Hiring
+  "Employee":             { enabled: true,  company_field: company,  brand_field: "" }  # list filter; read via has_permission
+  "Job Applicant":        { enabled: true,  company_field: "",       brand_field: "" }  # no native Company
+  "Job Opening":          { enabled: true,  company_field: company,  brand_field: "" }
+  "Attendance":           { enabled: true,  company_field: company,  brand_field: "" }
+  "Expense Claim":        { enabled: true,  company_field: company,  brand_field: "" }
+
+  # Accounting / Dimensions
+  "Journal Entry":        { enabled: true,  company_field: company,  brand_field: "" }
+  "Pricing Rule":         { enabled: true,  company_field: company,  brand_field: "" }
+  "Cost Center":          { enabled: true,  company_field: company,  brand_field: "" }
+
+pqc_bypass_roles:
+  - System Manager
+  # - Global Visibility   # optional: create and assign this role to auditors, etc.

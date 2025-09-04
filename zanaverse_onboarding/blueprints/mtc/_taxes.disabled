@@ -1,0 +1,10 @@
+docs:
+  - doctype: Sales Taxes and Charges Template
+    name: "UK VAT 20% - MTG"
+    company: "MarcTina Group Ltd"
+    is_default: 1
+    taxes:
+      - charge_type: "On Net Total"
+        account_head: "VAT - MTG"
+        rate: 20.0
+        description: "Standard VAT"

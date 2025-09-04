@@ -1,0 +1,15 @@
+docs:
+  - doctype: Brand
+    name: "Zanaverse"
+    description: "Digital platforms under MarcTina"
+  - doctype: Brand
+    name: "The Odyssey Studios"
+    description: "Creative platforms under MarcTina"
+  - doctype: Brand
+    name: "MarcTina Consultancy"
+    description: "Technical platforms under MarcTina"
+
+brands:
+  - brand: "Zanaverse"
+  - brand: "The Odyssey Studios"
+  - brand: "MarcTina Consultancy"

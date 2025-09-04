@@ -1,0 +1,51 @@
+role_profiles:
+  # --- Core admin ---
+  - name: "Admin (MTC)"
+    roles: ["System Manager"]
+
+  # --- Finance ---
+  - name: "Finance (User)"
+    roles: ["Accounts User", "Employee Self Service"]
+
+  - name: "Finance (Manager)"
+    roles: ["Accounts Manager", "Accounts User", "Employee Self Service"]
+
+  # --- Sales ---
+  - name: "Sales (Rep)"
+    roles: ["Sales User", "Employee Self Service"]
+
+  - name: "Sales (Manager)"
+    roles: ["Sales Manager", "Employee Self Service"]
+
+  # --- HR ---
+  - name: "HR (User)"
+    roles: ["HR User", "Employee Self Service"]
+
+  - name: "HR (Manager)"
+    roles: ["HR Manager", "HR User", "Employee Self Service"]
+
+  # --- Projects / Ops ---
+  - name: "Projects (User)"
+    roles: ["Projects User", "Employee Self Service"]
+
+  - name: "Projects (Manager)"
+    roles: ["Projects Manager", "Projects User", "Employee Self Service"]
+
+  # --- Line management / approvals ---
+  - name: "Line Manager (People + Approvals)"
+    roles: ["HR User", "Leave Approver", "Expense Approver", "Employee Self Service"]
+
+  # --- Approver-only ---
+  - name: "Approver (Expenses)"
+    roles: ["Expense Approver"]
+
+  - name: "Approver (Leave)"
+    roles: ["Leave Approver"]
+
+  # --- Simple employees / interns ---
+  - name: "Employee Self Service (Only)"
+    roles: ["Employee Self Service"]
+
+  # --- Contractors ---
+  - name: "Contractor (Desk + ESS)"
+    roles: ["Projects User", "Employee Self Service"]

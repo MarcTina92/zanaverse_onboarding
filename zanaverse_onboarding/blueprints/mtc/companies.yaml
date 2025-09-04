@@ -1,0 +1,20 @@
+companies:
+  - company_name: MarcTina Group Ltd
+    abbr: MTG
+    default_currency: GBP
+    country: United Kingdom
+
+  - company_name: MarcTina Kenya Ltd
+    abbr: MTK
+    default_currency: KES
+    country: Kenya
+
+  - company_name: MarcTina Nigeria Ltd
+    abbr: MTN
+    default_currency: NGN
+    country: Nigeria
+
+  - company_name: MarcTina Zambia Ltd
+    abbr: MTZ
+    default_currency: ZMW
+    country: Zambia

@@ -1,0 +1,1 @@
+zanaverse_onboarding.patches.ensure_module_and_doctype.execute
