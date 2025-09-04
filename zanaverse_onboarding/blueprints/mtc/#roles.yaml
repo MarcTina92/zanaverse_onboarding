@@ -1,0 +1,6 @@
+# NOT USED AS YET BUT WILL BE FOR CUSTOM ROLES IN THE FUTURE
+
+# blueprints/mtc/roles.yaml
+roles: []
+options:
+  union_only: true

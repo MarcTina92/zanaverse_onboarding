@@ -81,62 +81,42 @@ app_license = "mit"
 
 # Installation
 # ------------
-
 # before_install = "zanaverse_onboarding.install.before_install"
 # after_install = "zanaverse_onboarding.install.after_install"
 
 # Uninstallation
 # ------------
-
 # before_uninstall = "zanaverse_onboarding.uninstall.before_uninstall"
 # after_uninstall = "zanaverse_onboarding.uninstall.after_uninstall"
 
 # Integration Setup
 # ------------------
-# To set up dependencies/integrations with other apps
-# Name of the app being installed is passed as an argument
-
 # before_app_install = "zanaverse_onboarding.utils.before_app_install"
 # after_app_install = "zanaverse_onboarding.utils.after_app_install"
 
 # Integration Cleanup
 # -------------------
-# To clean up dependencies/integrations with other apps
-# Name of the app being uninstalled is passed as an argument
-
 # before_app_uninstall = "zanaverse_onboarding.utils.before_app_uninstall"
 # after_app_uninstall = "zanaverse_onboarding.utils.after_app_uninstall"
 
 # Desk Notifications
 # ------------------
-# See frappe.core.notifications.get_notification_config
-
 # notification_config = "zanaverse_onboarding.notifications.get_notification_config"
 
 # Permissions
 # -----------
 # Permissions evaluated in scripted ways
 
-# permission_query_conditions = {
-# 	"Event": "frappe.desk.doctype.event.event.get_permission_query_conditions",
-# }
-#
-# has_permission = {
-# 	"Event": "frappe.desk.doctype.event.event.has_permission",
-# }
+# ...rest of your hooks.py...
 
 # DocType Class
 # ---------------
-# Override standard doctype classes
-
 # override_doctype_class = {
 # 	"ToDo": "custom_app.overrides.CustomToDo"
 # }
 
 # Document Events
 # ---------------
-# Hook on document methods and events
-
 # doc_events = {
 # 	"*": {
 # 		"on_update": "method",
@@ -147,50 +127,28 @@ app_license = "mit"
 
 # Scheduled Tasks
 # ---------------
-
 # scheduler_events = {
-# 	"all": [
-# 		"zanaverse_onboarding.tasks.all"
-# 	],
-# 	"daily": [
-# 		"zanaverse_onboarding.tasks.daily"
-# 	],
-# 	"hourly": [
-# 		"zanaverse_onboarding.tasks.hourly"
-# 	],
-# 	"weekly": [
-# 		"zanaverse_onboarding.tasks.weekly"
-# 	],
-# 	"monthly": [
-# 		"zanaverse_onboarding.tasks.monthly"
-# 	],
+# 	"all": ["zanaverse_onboarding.tasks.all"],
+# 	"daily": ["zanaverse_onboarding.tasks.daily"],
+# 	"hourly": ["zanaverse_onboarding.tasks.hourly"],
+# 	"weekly": ["zanaverse_onboarding.tasks.weekly"],
+# 	"monthly": ["zanaverse_onboarding.tasks.monthly"],
 # }
 
 # Testing
 # -------
-
 # before_tests = "zanaverse_onboarding.install.before_tests"
 
 # Overriding Methods
 # ------------------------------
-#
 # override_whitelisted_methods = {
 # 	"frappe.desk.doctype.event.event.get_events": "zanaverse_onboarding.event.get_events"
 # }
-#
-# each overriding function accepts a `data` argument;
-# generated from the base implementation of the doctype dashboard,
-# along with any modifications made in other Frappe apps
 # override_doctype_dashboards = {
 # 	"Task": "zanaverse_onboarding.task.get_dashboard_data"
 # }
 
-# exempt linked doctypes from being automatically cancelled
-#
 # auto_cancel_exempted_doctypes = ["Auto Repeat"]
-
-# Ignore links to specified DocTypes when deleting documents
-# -----------------------------------------------------------
 
 # ignore_links_on_delete = ["Communication", "ToDo"]
 
@@ -206,39 +164,44 @@ app_license = "mit"
 
 # User Data Protection
 # --------------------
-
 # user_data_fields = [
-# 	{
-# 		"doctype": "{doctype_1}",
-# 		"filter_by": "{filter_by}",
-# 		"redact_fields": ["{field_1}", "{field_2}"],
-# 		"partial": 1,
-# 	},
-# 	{
-# 		"doctype": "{doctype_2}",
-# 		"filter_by": "{filter_by}",
-# 		"partial": 1,
-# 	},
-# 	{
-# 		"doctype": "{doctype_3}",
-# 		"strict": False,
-# 	},
-# 	{
-# 		"doctype": "{doctype_4}"
-# 	}
+# 	{"doctype": "{doctype_1}", "filter_by": "{filter_by}", "redact_fields": ["{field_1}", "{field_2}"], "partial": 1},
+# 	{"doctype": "{doctype_2}", "filter_by": "{filter_by}", "partial": 1},
+# 	{"doctype": "{doctype_3}", "strict": False},
+# 	{"doctype": "{doctype_4}"}
 # ]
 
 # Authentication and authorization
 # --------------------------------
+# auth_hooks = ["zanaverse_onboarding.auth.validate"]
 
-# auth_hooks = [
-# 	"zanaverse_onboarding.auth.validate"
-# ]
-
-# Automatically update python controller files with type annotations for this app.
 # export_python_type_annotations = True
 
-# default_log_clearing_doctypes = {
-# 	"Logging DocType Name": 30  # days to retain logs
-# }
+# default_log_clearing_doctypes = {"Logging DocType Name": 30}
 
+#Fixtures for roles exporting 
+#fixtures = [
+ #   {"doctype": "Role", "filters": [["name", "like", "mtc\\_%"]]},
+ #   {"doctype": "Custom DocPerm", "filters": [["role", "like", "mtc\\_%"]]},
+#]
+
+# Permissions (policy-driven PQCs)
+from zanaverse_onboarding import permissions as perm
+
+_pol = perm._load_policy()
+permission_query_conditions = {
+    dt: f"zanaverse_onboarding.permissions.pqc_{dt.lower().replace(' ', '_')}"
+    for dt, cfg in (_pol.get("pqc_doctypes") or {}).items()
+    if cfg and cfg.get("enabled") and hasattr(perm, f"pqc_{dt.lower().replace(' ', '_')}")
+}
+
+has_permission = {
+    "Employee": "zanaverse_onboarding.permissions.has_permission_employee",
+}
+
+# --- Install / Migrate hooks ---
+after_install = "zanaverse_onboarding.install.after_install"
+after_migrate = "zanaverse_onboarding.install.after_migrate"
+
+# Ensure required Module/Doctype exist before migrations
+before_migrate = ["zanaverse_onboarding.patches.ensure_module_and_doctype.execute"]

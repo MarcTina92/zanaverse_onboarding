@@ -1,0 +1,16 @@
+# Either style works; pick ONE.
+
+# Style A: slug -> list of hostnames/patterns
+map:
+  mtc:
+    - "marctina-dev.localhost"
+    - "mtc-dev.zanaverse.com"
+    - "mtc-demo.zanaverse.com"
+    - "mtc.zanaverse.com"
+
+# Style B: site -> slug (one-by-one mapping)
+# sites:
+#   "marctina-dev.localhost": "mtc"
+#   "dev.mtc.zanaverse.com": "mtc"
+#   "demo.mtc.zanaverse.com": "mtc"
+#   "mtc.zanaverse.com": "mtc"

@@ -1,0 +1,73 @@
+mode: append
+send_welcome_email: false
+defaults:
+  language: en
+  time_zone: Europe/London
+
+users:
+  - full_name: Joseph Akinola
+    email: joseph@marctinaconsultancy.com
+    company: MarcTina Group
+    brand_scope: All
+    role_profiles: ["Admin (MTC)"]
+    roles: ["Sales Manager"]     # extra capability beyond the profile
+    is_desk_user: true
+
+  - full_name: Victor Mukoshi
+    email: v.mukoshi@marctinaconsultancy.com
+    company: MarcTina Kenya
+    brand_scope: All
+    role_profiles: ["CRM (Only)", "Line Manager (People + Approvals)"]
+    roles: ["Sales User"]                  
+    is_desk_user: true
+
+  - full_name: Erick Sikorei
+    email: e.sikorei@theodysseystudios.com
+    company: MarcTina Kenya
+    brand_scope: The Odyssey Studios
+    role_profiles: ["Sales (Rep)"]
+    is_desk_user: true
+
+  - full_name: Martha Mwaisoloka
+    email: m.mwaisoloka@marctinaconsultancy.com
+    company: MarcTina Group
+    brand_scope: All
+    role_profiles: ["Sales (Manager)"]
+    is_desk_user: true
+
+  - full_name: Lucas Ayeni
+    email: l.ayeni@marctinaconsultancy.com
+    company: MarcTina Nigeria
+    brand_scope: All
+    role_profiles: ["HR (Manager)"]
+    is_desk_user: true
+
+  - full_name: Arabella Abodunrin
+    email: a.abodunrin@marctinaconsultancy.com
+    company: MarcTina Nigeria
+    brand_scope: All
+    role_profiles: ["HR (User)"]
+    is_desk_user: true
+
+  - full_name: Linet Makena
+    email: l.makena@marctinaconsultancy.com
+    company: MarcTina Kenya
+    brand_scope: All
+    role_profiles: ["Employee Self Service (Only)"]
+    is_desk_user: true
+
+  - full_name: Kupi Chiwawa
+    email: k.chiwawa@marctinaconsultancy.com
+    company: MarcTina Zambia Ltd
+    brand_scope: ["MarcTina Consultancy"]
+    role_profiles: ["Projects (User)"]
+    roles: ["Sales User"]                  
+    is_desk_user: true
+
+  - full_name: Rebecca Tshinap
+    email: r.tshinap@marctinaconsultancy.com
+    company: MarcTina Zambia Ltd
+    brand_scope: ["MarcTina Consultancy", "The Odyssey Studios", "Zanaverse"]
+    role_profiles: ["Projects (User)"]
+    roles: ["Sales User"]                  
+    is_desk_user: true

@@ -1,0 +1,23 @@
+{
+  "doctype": "DocType",
+  "name": "Provision Log",
+  "module": "Zanaverse Onboarding",
+  "autoname": "field:log_id",
+  "custom": 0,
+  "track_changes": 1,
+  "fields": [
+    {"fieldname":"log_id","fieldtype":"Data","label":"Log ID","reqd":1,"read_only":1,"unique":1},
+    {"fieldname":"site","fieldtype":"Data","label":"Site","reqd":1},
+    {"fieldname":"blueprint","fieldtype":"Data","label":"Blueprint","reqd":1},
+    {"fieldname":"commit_sha","fieldtype":"Data","label":"Onboarding App SHA"},
+    {"fieldname":"dry_run","fieldtype":"Check","label":"Dry Run"},
+    {"fieldname":"status","fieldtype":"Select","label":"Status","options":"SUCCESS\nFAIL\nDRY-RUN","reqd":1},
+    {"fieldname":"summary","fieldtype":"Small Text","label":"Summary"},
+    {"fieldname":"plan","fieldtype":"Long Text","label":"Applied Plan (JSON)"},
+    {"fieldname":"started_at","fieldtype":"Datetime","label":"Started At"},
+    {"fieldname":"finished_at","fieldtype":"Datetime","label":"Finished At"}
+  ],
+  "permissions": [
+    {"role":"System Manager","create":1,"read":1,"write":1,"delete":1,"print":1,"email":1,"report":1,"export":1}
+  ]
+}

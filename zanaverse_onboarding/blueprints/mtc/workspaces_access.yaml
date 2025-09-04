@@ -1,0 +1,171 @@
+# blueprints/mtc/workspaces_access.yaml
+docs:
+  # Keep your landing page public to everyone
+  - doctype: Workspace
+    name: Zanaverse Home
+    public: 1
+    roles: []   # empty => visible to all users
+
+  # Lock down the stock "Home" to admins only
+  - doctype: Workspace
+    name: Home
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: System Manager
+
+  # --- Accounts ---
+  - doctype: Workspace
+    name: Accounting
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Accounts User
+      - doctype: Workspace Role
+        role: Accounts Manager
+
+  - doctype: Workspace
+    name: Payables
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Accounts User
+      - doctype: Workspace Role
+        role: Accounts Manager
+
+  - doctype: Workspace
+    name: Receivables
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Accounts User
+      - doctype: Workspace Role
+        role: Accounts Manager
+
+  - doctype: Workspace
+    name: Financial Reports
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Accounts Manager
+
+  # --- Buying / Selling / Stock ---
+  - doctype: Workspace
+    name: Buying
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Purchase User
+      - doctype: Workspace Role
+        role: Purchase Manager
+
+  - doctype: Workspace
+    name: Selling
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Sales User
+      - doctype: Workspace Role
+        role: Sales Manager
+
+  - doctype: Workspace
+    name: Stock
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Stock User
+      - doctype: Workspace Role
+        role: Stock Manager
+
+  # --- HR (quote names with &) ---
+  - doctype: Workspace
+    name: HR
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: HR User
+      - doctype: Workspace Role
+        role: HR Manager
+
+  - doctype: Workspace
+    name: Recruitment
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: HR User
+      - doctype: Workspace Role
+        role: HR Manager
+
+  - doctype: Workspace
+    name: "Shift & Attendance"
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: HR User
+      - doctype: Workspace Role
+        role: HR Manager
+
+  - doctype: Workspace
+    name: "Tax & Benefits"
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: HR User
+      - doctype: Workspace Role
+        role: HR Manager
+
+  # --- Projects / CRM / Support ---
+  - doctype: Workspace
+    name: Projects
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Projects User
+      - doctype: Workspace Role
+        role: Projects Manager
+
+  - doctype: Workspace
+    name: CRM
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Sales User
+      - doctype: Workspace Role
+        role: Sales Manager
+
+  - doctype: Workspace
+    name: Support
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Support Team
+
+
+  # --- Misc admin-y ones (hide by default) ---
+  - doctype: Workspace
+    name: Users
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: System Manager
+
+  - doctype: Workspace
+    name: ERPNext Settings
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: System Manager
+
+  - doctype: Workspace
+    name: Website
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: Website Manager
+
+  - doctype: Workspace
+    name: Tools
+    public: 0
+    roles:
+      - doctype: Workspace Role
+        role: System Manager

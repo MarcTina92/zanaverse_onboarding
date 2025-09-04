@@ -1,0 +1,258 @@
+docs:
+- doctype: Workspace
+  name: Zanaverse Home
+  title: Zanaverse Home
+  label: Zanaverse Home
+  module: Zanaverse
+  public: 1
+  roles: []
+  icon: getting-started
+  indicator_color: green
+  is_hidden: 0
+  for_user: ''
+  parent_page: ''
+  restrict_to_domain: ''
+  charts: []
+  number_cards: []
+  quick_lists: []
+  custom_blocks: []
+  content: '[{"id":"kb3XPLg8lb","type":"header","data":{"text":"<span class=\\"h4\\"><b>Your Shortcuts</b></span>","col":12}},{"id":"nWd2KJPW8l","type":"shortcut","data":{"shortcut_name":"Item","col":3}},{"id":"snrzfbFr5Y","type":"shortcut","data":{"shortcut_name":"Customer","col":3}},{"id":"SHJKakmLLf","type":"shortcut","data":{"shortcut_name":"Supplier","col":3}},{"id":"CPxEyhaf3G","type":"shortcut","data":{"shortcut_name":"Sales Invoice","col":3}},{"id":"WU4F-HUcIQ","type":"shortcut","data":{"shortcut_name":"Leaderboard","col":3}},{"id":"d_KVM1gsf9","type":"spacer","data":{"col":12}},{"id":"JVu8-FJZCu","type":"header","data":{"text":"<span class=\\"h4\\"><b>Reports &amp; Masters</b></span>","col":12}},{"id":"JiuSi0ubOg","type":"card","data":{"card_name":"Accounting","col":4}},{"id":"ji2Jlm3Q8i","type":"card","data":{"card_name":"Stock","col":4}},{"id":"N61oiXpuwK","type":"card","data":{"card_name":"CRM","col":4}},{"id":"6J0CVl1mPo","type":"card","data":{"card_name":"Data Import and Settings","col":4}}]'
+  links:
+  - doctype: Workspace Link
+    type: Card Break
+    label: Accounting
+    link_type: DocType
+    hidden: 0
+    onboard: 0
+    is_query_report: 0
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Chart of Accounts
+    link_type: DocType
+    link_to: Account
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Company
+    link_type: DocType
+    link_to: Company
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Customer
+    link_type: DocType
+    link_to: Customer
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Supplier
+    link_type: DocType
+    link_to: Supplier
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Card Break
+    label: Stock
+    link_type: DocType
+    hidden: 0
+    onboard: 0
+    is_query_report: 0
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Item
+    link_type: DocType
+    link_to: Item
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Warehouse
+    link_type: DocType
+    link_to: Warehouse
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Brand
+    link_type: DocType
+    link_to: Brand
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Unit of Measure (UOM)
+    link_type: DocType
+    link_to: UOM
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Stock Reconciliation
+    link_type: DocType
+    link_to: Stock Reconciliation
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Card Break
+    label: CRM
+    link_type: DocType
+    hidden: 0
+    onboard: 0
+    is_query_report: 0
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Lead
+    link_type: DocType
+    link_to: Lead
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Customer Group
+    link_type: DocType
+    link_to: Customer Group
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Territory
+    link_type: DocType
+    link_to: Territory
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Card Break
+    label: Data Import and Settings
+    link_type: DocType
+    hidden: 0
+    onboard: 0
+    is_query_report: 0
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Import Data
+    link_type: DocType
+    link_to: Data Import
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Opening Invoice Creation Tool
+    link_type: DocType
+    link_to: Opening Invoice Creation Tool
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Chart of Accounts Importer
+    link_type: DocType
+    link_to: Chart of Accounts Importer
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Letter Head
+    link_type: DocType
+    link_to: Letter Head
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  - doctype: Workspace Link
+    type: Link
+    label: Email Account
+    link_type: DocType
+    link_to: Email Account
+    onboard: 1
+    is_query_report: 0
+    hidden: 0
+    dependencies: ''
+    link_count: 0
+  shortcuts:
+  - doctype: Workspace Shortcut
+    type: DocType
+    label: Item
+    link_to: Item
+    doc_view: ''
+  - doctype: Workspace Shortcut
+    type: DocType
+    label: Customer
+    link_to: Customer
+    doc_view: ''
+  - doctype: Workspace Shortcut
+    type: DocType
+    label: Supplier
+    link_to: Supplier
+    doc_view: ''
+  - doctype: Workspace Shortcut
+    type: DocType
+    label: Sales Invoice
+    link_to: Sales Invoice
+    doc_view: ''
+  - doctype: Workspace Shortcut
+    type: Page
+    label: Leaderboard
+    link_to: leaderboard
+    doc_view: ''
+
+# Lock down stock "Home" to admins only
+- doctype: Workspace
+  name: Home
+  title: Home
+  module: Setup
+  public: 0
+  roles:
+    - doctype: Workspace Role
+      role: System Manager

@@ -1,0 +1,7 @@
+docs:
+  - doctype: Currency
+    name: "ZMW"
+    symbol: "K"
+  - doctype: Currency
+    name: "NGN"
+    symbol: "₦"
