@@ -19,12 +19,12 @@ def _get_blueprint_default() -> str:
         return "mtc"
 
 
-def _run_once(blueprint: str = "mtc", harden: int = 1):
+def _run_once(blueprint: str = "mtc", harden: int = 0):
     """
     Idempotent bootstrap:
     - remembers chosen blueprint in site_config
     - applies blueprint YAML via provision()
-    - hardens stock workspaces (keeps 'Zanaverse Home' public)
+    - optionally hardens stock workspaces (disabled by default)
     """
     from zanaverse_onboarding.cli import provision, _remember_blueprint
 
@@ -35,12 +35,13 @@ def _run_once(blueprint: str = "mtc", harden: int = 1):
         frappe.log_error(frappe.get_traceback(), "ZV Onboarding: remember_blueprint failed")
         frappe.db.rollback()
 
-    # apply provisioning (creates Module Defs for any Workspace.module, applies YAML, hardens workspaces)
+    # apply provisioning (creates Module Defs for any Workspace.module, applies YAML)
     try:
         provision(
             blueprint=blueprint,
             dry_run=0,
             commit_sha=None,
+            # keep hardening OFF unless explicitly enabled
             harden_workspaces=int(harden or 0),
         )
     except Exception:
@@ -51,18 +52,20 @@ def _run_once(blueprint: str = "mtc", harden: int = 1):
 def after_install():
     """Runs on `bench --site <site> install-app zanaverse_onboarding`."""
     _reload_schemas()
-    _run_once(blueprint="mtc", harden=1)
+    # keep hardening OFF by default
+    _run_once(blueprint=_get_blueprint_default(), harden=0)  # <- OFF
 
 
 def after_migrate():
     """Keep things consistent after migrations."""
     _reload_schemas()
     bp = _get_blueprint_default()
-    _run_once(blueprint=bp, harden=1)
+    # keep hardening OFF by default
+    _run_once(blueprint=_get_blueprint_default(), harden=0)  # <- OFF
 
 
 @frappe.whitelist()
-def bootstrap(blueprint: str = "mtc", harden: int = 1):
+def bootstrap(blueprint: str = "mtc", harden: int = 0):
     """
     Manual helper you can run anytime, e.g.:
       bench --site your.site execute zanaverse_onboarding.install.bootstrap \
