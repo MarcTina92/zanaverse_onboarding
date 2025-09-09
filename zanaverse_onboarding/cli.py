@@ -1145,11 +1145,27 @@ def apply_default_workspaces_after_migrate():
 
 @frappe.whitelist()
 def verify_workspace_visibility_invariants(allowed_private_no_roles=("Wiki",), raise_on_error=False):
+    """Verify public/private + roles invariants for Workspace, but skip gracefully
+    on stacks that don't have the 'Workspace Role' child doctype."""
     allowed = set(allowed_private_no_roles or ())
 
+    # If Workspace itself is missing, nothing to verify.
+    if not frappe.db.table_exists("tabWorkspace"):
+        print("No Workspace table on this stack; skipping invariants check.")
+        return {"ok": True, "skipped": "no Workspace table"}
+
+    # Some stacks don't have a 'Workspace Role' child doctype/table.
+    has_ws_role = frappe.db.table_exists("tabWorkspace Role")
+
     public = set(frappe.get_all("Workspace", filters={"public": 1}, pluck="name"))
-    role_rows = frappe.get_all("Workspace Role", fields=["parent"], distinct=True)
-    roles = {r["parent"] for r in role_rows}
+
+    roles = set()
+    if has_ws_role:
+        role_rows = frappe.get_all("Workspace Role", fields=["parent"], distinct=True)
+        roles = {r["parent"] for r in (role_rows or [])}
+    else:
+        print("No 'Workspace Role' table; skipping role-based visibility checks.")
+        return {"ok": True, "skipped": "no Workspace Role table"}
 
     public_with_roles = sorted(public & roles)
     all_ws = set(frappe.get_all("Workspace", pluck="name"))
