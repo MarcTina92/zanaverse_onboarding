@@ -118,7 +118,7 @@ module_profiles:
         "Custom","Desk","EDI","Email","ERPNext Integrations","Geo","Helpdesk","HR","Insights","Integrations",
         "Maintenance","Manufacturing","Payment Gateways","Payments","Payroll","Portal","Printing","Projects",
         "Quality Management","Regional","Selling","Setup","Social","Stock","Subcontracting","Support","Telephony",
-        "Utilities","Website","Wiki","Workflow","Zanaverse","Zanaverse Config","Zanaverse Onboarding" ]
+        "Utilities","Website","Workflow","Zanaverse","Zanaverse Config","Zanaverse Onboarding" ]
     workspaces:
       [ "Setup","Custom","Integrations","Utilities","Workflow","Portal","Website","Printing","Desk",
         "HR","Payroll","Accounts","Support","Projects","CRM","Selling","Buying","Payments","Insights",
