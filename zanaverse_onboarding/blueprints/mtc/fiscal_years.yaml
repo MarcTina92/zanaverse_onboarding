@@ -1,0 +1,17 @@
+fiscal_years:
+  # --- Global default ---
+  - year: "2025"
+    start_date: "2025-01-01"
+    end_date: "2025-12-31"
+    is_default: 1
+    companies:
+      - "MarcTina Kenya Ltd"
+      - "MarcTina Nigeria Ltd"
+      - "MarcTina Zambia Ltd"
+
+  - year: "2025-26"
+    start_date: "2025-04-01"
+    end_date: "2026-03-31"
+    is_default: 0
+    companies:
+      - "MarcTina Group Ltd"

@@ -1,0 +1,23 @@
+keep_enabled:
+  - MarcTina Consultancy Letterhead
+  - The Odyssey Studios Letterhead
+  - Zanaverse Letterhead
+
+preferred_default: MarcTina Consultancy Letterhead
+
+company_defaults:
+  MarcTina Group Ltd: MarcTina Consultancy Letterhead
+  MarcTina Kenya Ltd: MarcTina Consultancy Letterhead
+  MarcTina Nigeria Ltd: MarcTina Consultancy Letterhead
+  MarcTina Zambia Ltd: MarcTina Consultancy Letterhead
+
+letterheads:
+  - name: MarcTina Consultancy Letterhead
+    image: /files/letterheads/marc-tina-consultancy.png
+    source_path: brand/marc-tina-consultancy.png
+  - name: The Odyssey Studios Letterhead
+    image: /files/letterheads/the-odyssey-studios.png
+    source_path: brand/the-odyssey-studios.png
+  - name: Zanaverse Letterhead
+    image: /files/letterheads/zanaverse.png
+    source_path: brand/Zanaverse.png

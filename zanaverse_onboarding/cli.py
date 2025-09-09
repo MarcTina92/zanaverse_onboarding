@@ -415,8 +415,7 @@ def _apply_brands_from_yaml(bp):
 # ---- roles cloning (optional union-only helper) ------------------------------
 
 from typing import Dict, Any, Tuple, List
-from frappe.permissions import add_permission
-
+#from frappe.permissions import add_permission
 
 def _ensure_role_doc(role_name: str, desk_access: bool | None, dry_run: bool) -> tuple[bool, bool]:
     created = updated = False
@@ -754,6 +753,8 @@ def _set_children(doc, fieldname, items):
 # add params
 def _apply_workspace_yaml(path: pathlib.Path, include_names: tuple[str, ...] | None = None,
                           include_modules: tuple[str, ...] | None = None):
+    if yaml is None:
+        frappe.throw("PyYAML is required to apply workspace blueprints.")
     data = yaml.safe_load(path.read_text()) or {}
     docs = data.get("docs", [])
     applied = []
@@ -821,6 +822,146 @@ def apply_blueprint(files=None, include_names: tuple[str, ...] | None = None,
     for f in files:
         _apply_workspace_yaml(pathlib.Path(f), include_names=include_names, include_modules=include_modules)
 
+# --------------------------------------------------------------------------------------
+# Letterheads: copy repo assets -> site /files + upsert Letter Head docs
+# --------------------------------------------------------------------------------------
+
+def _ensure_public_file(local_path: str, public_url: str):
+    """Copy an image from repo into /public/files/... and register a public File doc."""
+    assert public_url.startswith("/files/")
+    target_rel = public_url[len("/files/"):].lstrip("/")
+    target_abs = frappe.utils.get_site_path("public", "files", target_rel)
+    os.makedirs(os.path.dirname(target_abs), exist_ok=True)
+
+    with open(local_path, "rb") as src, open(target_abs, "wb") as dst:
+        dst.write(src.read())
+
+    if not frappe.db.exists("File", {"file_url": public_url, "is_private": 0}):
+        frappe.get_doc({
+            "doctype": "File",
+            "file_url": public_url,
+            "is_private": 0
+        }).insert(ignore_permissions=True)
+
+def _upsert_letterhead(row: dict):
+    """Create/update Letter Head pointing to image URL."""
+    name = row["name"]
+    if frappe.db.exists("Letter Head", name):
+        doc = frappe.get_doc("Letter Head", name)
+    else:
+        doc = frappe.new_doc("Letter Head")
+        doc.letter_head_name = name
+
+    doc.source = row.get("source", "Image")
+    doc.content = row.get("content", "") or ""
+    if row.get("image"):
+        doc.image = row["image"]
+    # leave is_default as-is unless you want to force it
+    doc.save(ignore_permissions=True)
+
+def _load_letterheads_yaml(bp: str) -> dict:
+    """Lightweight loader for blueprints/<bp>/letterheads.yaml."""
+    path = os.path.join(BP_ROOT, bp, "letterheads.yaml")
+    if not yaml or not os.path.exists(path):
+        return {}
+    with open(path, "r", encoding="utf-8") as f:
+        return yaml.safe_load(f) or {}
+
+
+def apply_letterheads(bp: str, dry_run: bool = False):
+    conf = _load_letterheads_yaml(bp)
+    if not conf:
+        return
+
+    asset_dir = os.path.join(BP_ROOT, bp, "assets", "letterheads")
+    rows = conf.get("letterheads") or []
+
+    # 1) stage file ops + upserts
+    for row in rows:
+        public_url = row.get("image")
+        source_path = row.get("source_path")
+        if public_url and source_path:
+            local_path = os.path.join(asset_dir, source_path)
+            if not os.path.exists(local_path):
+                frappe.throw(f"Missing letterhead asset: {local_path}")
+            if not dry_run:
+                _ensure_public_file(local_path, public_url)
+        if not dry_run:
+            _upsert_letterhead(row)
+
+    # 2) cache names once
+    all_names = frappe.get_all("Letter Head", pluck="name")
+    all_names_set = set(all_names)
+
+    preferred = (conf.get("preferred_default") or "").strip()
+    keep = set(conf.get("keep_enabled") or [])
+    if preferred:
+        keep.add(preferred)
+
+    # Validate lists using cached sets
+    if preferred and preferred not in all_names_set:
+        frappe.throw(f"preferred_default not found: {preferred}")
+    missing = [nm for nm in keep if nm not in all_names_set]
+    if missing:
+        frappe.throw(f"keep_enabled letterheads not found: {missing}")
+
+    # 3) bulk flips
+    if not dry_run:
+        # clear current default
+        frappe.db.sql("update `tabLetter Head` set is_default = 0 where is_default = 1")
+
+        # set preferred default (and ensure it's enabled)
+        if preferred:
+            frappe.db.set_value("Letter Head", preferred, "is_default", 1)
+            frappe.db.set_value("Letter Head", preferred, "disabled", 0)
+
+        # If a preferred exists but keep is empty, lock it down to just preferred
+        if not keep and preferred:
+            frappe.db.sql(
+                "update `tabLetter Head` set is_default = 0, disabled = 1 where name != %s",
+                preferred,
+            )
+            # paranoia: guarantee preferred stays enabled
+            frappe.db.set_value("Letter Head", preferred, "disabled", 0)
+
+        # If keep is provided, enable those and disable the rest
+        if keep:
+            keep_tuple = tuple(keep)
+            marks = ", ".join(["%s"] * len(keep_tuple))
+            # enable keep
+            frappe.db.sql(
+                f"update `tabLetter Head` set disabled = 0 where name in ({marks})",
+                keep_tuple,
+            )
+            # disable not-keep
+            frappe.db.sql(
+                f"update `tabLetter Head` set is_default = 0, disabled = 1 where name not in ({marks})",
+                keep_tuple,
+            )
+
+        # Fallback: if no preferred default was specified, pick a sane enabled one
+        if not preferred:
+            cur_default = frappe.db.get_value(
+                "Letter Head", {"is_default": 1, "disabled": 0}, "name"
+            )
+            if not cur_default:
+                candidate = (next((nm for nm in keep if nm in all_names_set), None)
+                             if keep else None)
+                if not candidate:
+                    enabled = frappe.get_all(
+                        "Letter Head", filters={"disabled": 0}, pluck="name"
+                    )
+                    candidate = enabled[0] if enabled else None
+                if candidate:
+                    frappe.db.set_value("Letter Head", candidate, "is_default", 1)
+
+        # 4) per-company defaults — cache companies first
+        companies = set(frappe.get_all("Company", pluck="name"))
+        for company, lh in (conf.get("company_defaults") or {}).items():
+            if company in companies and lh in all_names_set:
+                frappe.db.set_value("Company", company, "default_letter_head", lh)
+
+        frappe.db.commit()
 
 
 # --------------------------------------------------------------------------------------
@@ -899,14 +1040,19 @@ def provision(
     except Exception:
         frappe.log_error(frappe.get_traceback(), "Workspace hardening failed")
 
-    # letterheads/assets (if any)
-    from .letterheads import ensure_letterheads as _ensure_letterheads
-    _ensure_letterheads(docs, assets_dir)
+    # letterheads/assets (if any) — driven by letterheads.yaml
+    apply_letterheads(blueprint)
 
+    # single commit at the end of provisioning
     frappe.db.commit()
-    _safe_log(site, blueprint, False, summary_text, plan, "SUCCESS", commit_sha)
 
-    payload = {"summary": summary_text, "applied": applied, "workspace_hardening": ws_summary}
+    # log + return
+    _safe_log(site, blueprint, False, summary_text, plan, "SUCCESS", commit_sha)
+    payload = {
+        "summary": summary_text,
+        "applied": applied,
+        "workspace_hardening": ws_summary,
+    }
     print(json.dumps(payload, indent=2))
     return payload
 
@@ -977,7 +1123,6 @@ def doctor(site_name: str | None = None):
 
 
 # cli.py
-import pathlib
 
 def apply_default_workspaces_after_migrate():
     try:
@@ -998,47 +1143,31 @@ def apply_default_workspaces_after_migrate():
     except Exception:
         frappe.log_error(frappe.get_traceback(), "apply_default_workspaces_after_migrate failed")
 
-def verify_workspace_visibility_invariants(
-    allowed_private_no_roles=("Wiki",),
-    raise_on_error=False,
-):
-    import frappe
-
+@frappe.whitelist()
+def verify_workspace_visibility_invariants(allowed_private_no_roles=("Wiki",), raise_on_error=False):
     allowed = set(allowed_private_no_roles or ())
-    public_with_roles = []
-    private_without_roles = []
 
-    for name in frappe.get_all("Workspace", pluck="name"):
-        w = frappe.get_doc("Workspace", name)
-        is_public = int(w.public or 0)
-        has_roles = bool(w.roles or [])
+    public = set(frappe.get_all("Workspace", filters={"public": 1}, pluck="name"))
+    role_rows = frappe.get_all("Workspace Role", fields=["parent"], distinct=True)
+    roles = {r["parent"] for r in role_rows}
 
-        if is_public and has_roles:
-            public_with_roles.append(name)
-
-        if not is_public and not has_roles and name not in allowed:
-            private_without_roles.append(name)
+    public_with_roles = sorted(public & roles)
+    all_ws = set(frappe.get_all("Workspace", pluck="name"))
+    private = all_ws - public
+    private_without_roles = sorted((private - roles) - allowed)
 
     ok = not (public_with_roles or private_without_roles)
-    result = {
-        "ok": ok,
-        "public_with_roles": public_with_roles,
-        "private_without_roles": private_without_roles,
-    }
+    result = {"ok": ok, "public_with_roles": public_with_roles, "private_without_roles": private_without_roles}
 
     if not ok and raise_on_error:
         frappe.throw(
-            f"Workspace visibility invariants failed: "
-            f"public_with_roles={public_with_roles}, "
-            f"private_without_roles={private_without_roles}"
+            "Workspace visibility invariants failed: "
+            f"public_with_roles={public_with_roles}, private_without_roles={private_without_roles}"
         )
 
-    if ok:
-        print("Workspace visibility invariants look good.")
-    else:
-        print(result)
-
+    print("Workspace visibility invariants look good." if ok else result)
     return result
+
 
 
 def _remember_blueprint(slug: str):
@@ -1056,3 +1185,20 @@ def _remember_blueprint(slug: str):
     policy_path = os.path.join(app_root, "blueprints", slug, "policy.yaml")
     if os.path.exists(policy_path):
         update_site_config("zanaverse_onboarding_policy_path", policy_path)
+
+
+@frappe.whitelist()
+def verify_letterheads(bp: str = "mtc") -> dict:
+    out = {
+        "files": frappe.get_all("File",
+                 filters={"file_url":["like","/files/letterheads/%"]},
+                 fields=["file_url","is_private"]),
+        "letterheads": frappe.get_all("Letter Head",
+                        fields=["name","image","is_default","disabled"]),
+        "companies": frappe.get_all("Company", fields=["name","default_letter_head"]),
+        "global_default": frappe.get_all("Letter Head",
+                           filters={"is_default":1, "disabled":0},
+                           fields=["name","image"]),
+    }
+    print(out)
+    return out

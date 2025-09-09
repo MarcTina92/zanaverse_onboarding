@@ -1,0 +1,40 @@
+taxes:
+  # --- United Kingdom (MTG) ---
+  - title: "UK VAT 20% - MTG"
+    company: "MarcTina Group Ltd"
+    tax_type: "Sales"
+    taxes:
+      - charge_type: "On Net Total"
+        account_head: "VAT - MTG"
+        rate: 20.0
+        description: "Standard UK VAT"
+
+  # --- Kenya (MTK) ---
+  - title: "Kenya VAT 16% - MTK"
+    company: "MarcTina Kenya Ltd"
+    tax_type: "Sales"
+    taxes:
+      - charge_type: "On Net Total"
+        account_head: "VAT - MTK"
+        rate: 16.0
+        description: "Standard Kenya VAT"
+
+  # --- Nigeria (MTN) ---
+  - title: "Nigeria VAT 7.5% - MTN"
+    company: "MarcTina Nigeria Ltd"
+    tax_type: "Sales"
+    taxes:
+      - charge_type: "On Net Total"
+        account_head: "VAT - MTN"
+        rate: 7.5
+        description: "Standard Nigeria VAT"
+
+  # --- Zambia (MTZ) ---
+  - title: "Zambia VAT 16% - MTZ"
+    company: "MarcTina Zambia Ltd"
+    tax_type: "Sales"
+    taxes:
+      - charge_type: "On Net Total"
+        account_head: "VAT - MTZ"
+        rate: 16.0
+        description: "Standard Zambia VAT"
