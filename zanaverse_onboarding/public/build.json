@@ -1,0 +1,8 @@
+{
+  "js/zanaverse_onboarding.bundle.js": [
+    "public/js/placeholder.js"
+  ],
+  "css/zanaverse_onboarding.bundle.css": [
+    "public/css/placeholder.css"
+  ]
+}
