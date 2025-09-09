@@ -1,0 +1,7 @@
+{
+  "version": 3,
+  "sources": ["../../../../../apps/zanaverse_onboarding/zanaverse_onboarding/public/js/zanaverse_onboarding.bundle.js"],
+  "sourcesContent": ["// zvo placeholder bundle\nconsole.info(\"zanaverse_onboarding assets loaded\");\n"],
+  "mappings": ";;AACA,UAAQ,KAAK,oCAAoC;",
+  "names": []
+}
