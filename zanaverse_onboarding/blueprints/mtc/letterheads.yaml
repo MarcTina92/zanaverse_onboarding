@@ -6,6 +6,7 @@ keep_enabled:
 preferred_default: MarcTina Consultancy Letterhead
 
 company_defaults:
+  MarcTina Group: "MarcTina Consultancy Letterhead"
   MarcTina Group Ltd: MarcTina Consultancy Letterhead
   MarcTina Kenya Ltd: MarcTina Consultancy Letterhead
   MarcTina Nigeria Ltd: MarcTina Consultancy Letterhead
