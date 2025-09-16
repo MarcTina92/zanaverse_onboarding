@@ -728,7 +728,7 @@ def _ensure_user_doc(u, defaults):
     user.user_type = "System User" if bool(u.get("is_desk_user", True)) else "Website User"
     mp = (u.get("module_profile") or "").strip()
     if mp and frappe.db.exists("Module Profile", mp):
-        user.module_profile = mp
+        pass  # module_profile removed (using roles + default_workspace)
     user.save(ignore_permissions=True)
 
     profiles = []
@@ -1315,3 +1315,9 @@ def verify_letterheads(bp: str = "mtc") -> dict:
     }
     print(out)
     return out
+
+# === Zanaverse: disable Module Profile support (migrated to Workspaces fixtures) ===
+def _apply_module_profiles_from_yaml(bp: str):  # noqa: F811 (intentional override)
+    """No-op: Module Profiles are deprecated in Zanaverse onboarding.
+    We use role-scoped Workspaces (fixtures) + role profiles + default_workspace."""
+    return
