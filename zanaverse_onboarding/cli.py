@@ -412,6 +412,99 @@ def _apply_brands_from_yaml(bp):
         frappe.get_doc({"doctype": "Brand", "brand": name, "name": name}).insert(ignore_permissions=True)
 
 
+# ---- module profiles (from module_profiles.yaml) ----------------------------
+
+def _apply_module_profiles_from_yaml(bp: str):
+    """
+    Reads blueprints/<bp>/module_profiles.yaml with schema:
+
+    module_profiles:
+      - name: "ESS"
+        description: "..."
+        modules: ["HR", "Payroll", ...]
+        workspaces: ["HR", "Payroll", ...]   # note: stored only for union/hardening, not in DocType
+      - name: "ESS+Sales"
+        extends: "ESS"
+        modules: [...]
+        workspaces: [...]
+      ...
+
+    Behavior:
+      - Resolves 'extends' chains by UNION for both modules & workspaces.
+      - Upserts DocType "Module Profile":
+          module_profile_name = <name>
+          modules child table  = [{"module": "<Module Name>"}...]
+      - 'workspaces' are merged and kept in memory for later use if you want,
+        but the Module Profile record only stores modules.
+    """
+    path = os.path.join(BP_ROOT, bp, "module_profiles.yaml")
+    if not yaml or not os.path.exists(path):
+        return
+
+    data = yaml.safe_load(open(path, "r", encoding="utf-8")) or {}
+    items = data.get("module_profiles") or []
+    if not items:
+        return
+
+    # index by name
+    by_name = {row.get("name"): row for row in items if row.get("name")}
+    resolved: dict[str, dict] = {}
+
+    def _merge_one(name: str, stack: list[str] | None = None) -> dict:
+        if name in resolved:
+            return resolved[name]
+        if name not in by_name:
+            raise Exception(f"module_profile '{name}' not found in YAML")
+        stack = stack or []
+        if name in stack:
+            raise Exception(f"extends cycle detected: {' -> '.join(stack + [name])}")
+
+        cur = dict(by_name[name] or {})
+        base = cur.get("extends")
+        if base:
+            parent = _merge_one(base, stack + [name])
+            modules = sorted(set((parent.get("modules") or []) + (cur.get("modules") or [])))
+            workspaces = sorted(set((parent.get("workspaces") or []) + (cur.get("workspaces") or [])))
+            merged = {
+                "name": name,
+                "description": cur.get("description") or parent.get("description") or "",
+                "modules": modules,
+                "workspaces": workspaces,
+            }
+        else:
+            merged = {
+                "name": name,
+                "description": cur.get("description") or "",
+                "modules": sorted(set(cur.get("modules") or [])),
+                "workspaces": sorted(set(cur.get("workspaces") or [])),
+            }
+        resolved[name] = merged
+        return merged
+
+    # resolve everything
+    for n in by_name:
+        _merge_one(n)
+
+    # upsert Module Profiles
+    for name, prof in resolved.items():
+        rows = [{"module": m} for m in (prof.get("modules") or [])]
+
+        if frappe.db.exists("Module Profile", name):
+            doc = frappe.get_doc("Module Profile", name)
+            # overwrite description & module rows atomically
+            doc.description = prof.get("description") or ""
+            doc.set("modules", rows)
+            doc.save(ignore_permissions=True)
+        else:
+            frappe.get_doc({
+                "doctype": "Module Profile",
+                "module_profile_name": name,
+                "description": prof.get("description") or "",
+                "modules": rows,
+            }).insert(ignore_permissions=True)
+
+    frappe.db.commit()
+
 # ---- roles cloning (optional union-only helper) ------------------------------
 
 from typing import Dict, Any, Tuple, List
@@ -633,6 +726,9 @@ def _ensure_user_doc(u, defaults):
     user.enabled = 1
     user.send_welcome_email = 0
     user.user_type = "System User" if bool(u.get("is_desk_user", True)) else "Website User"
+    mp = (u.get("module_profile") or "").strip()
+    if mp and frappe.db.exists("Module Profile", mp):
+        user.module_profile = mp
     user.save(ignore_permissions=True)
 
     profiles = []
@@ -1026,6 +1122,7 @@ def provision(
 
     # clone_roles_from_yaml(blueprint=blueprint, dry_run=0)  # optional
     _apply_role_profiles_from_yaml(blueprint, union_only=True)
+    _apply_module_profiles_from_yaml(blueprint)   
     _apply_users_from_yaml(blueprint)
 
     # Only harden if explicitly enabled
