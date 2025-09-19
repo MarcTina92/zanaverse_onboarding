@@ -1,10 +1,7 @@
 docs:
   - doctype: Workspace
     name: Home
-    title: Home
-    label: Home
-    module: Setup
     public: 0
     roles:
-      - doctype: Workspace Role
+      - doctype: Has Role
         role: System Manager
