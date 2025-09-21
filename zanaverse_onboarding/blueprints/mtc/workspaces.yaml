@@ -1,7 +1,0 @@
-docs:
-  - doctype: Workspace
-    name: Home
-    public: 0
-    roles:
-      - doctype: Has Role
-        role: System Manager
