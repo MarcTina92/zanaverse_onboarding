@@ -1,7 +1,0 @@
-{
-  "version": 3,
-  "sources": ["../../../../../../../tmp/tmp-61641-0PktwQm6v9tR/zanaverse_onboarding/zanaverse_onboarding/public/css/zanaverse_onboarding.bundle.css"],
-  "sourcesContent": ["/* zvo placeholder bundle */\n:root { --zvo-bundle: 1; }\n"],
-  "mappings": ";AACA;AAAQ;AAAA;",
-  "names": []
-}
