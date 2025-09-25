@@ -1,0 +1,17 @@
+# Applies to: mtc.zanaverse.com
+site: mtc.zanaverse.com
+
+apply:
+  Website Settings:
+    home_page: "login"   # ensures the site always opens at the login screen
+    disable_website: 0
+    hide_login: 0
+    brand_html: "MTC"    # optional; shows in navbar, etc.
+
+# Optional: future-proof hooks you might want later
+#  Web Page:
+#    - title: "MTC Home"
+#      route: ""
+#      published: 1
+#      content_type: "HTML"
+#      html: "<h1>MTC</h1>"
