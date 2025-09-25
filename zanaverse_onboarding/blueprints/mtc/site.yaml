@@ -4,7 +4,7 @@ site: mtc.zanaverse.com
 apply:
   Website Settings:
     home_page: "login"   # ensures the site always opens at the login screen
-    disable_website: 0
+    disable_website: 1
     hide_login: 0
     brand_html: "MTC"    # optional; shows in navbar, etc.
 
