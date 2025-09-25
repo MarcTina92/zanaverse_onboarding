@@ -1321,3 +1321,77 @@ def _apply_module_profiles_from_yaml(bp: str):  # noqa: F811 (intentional overri
     """No-op: Module Profiles are deprecated in Zanaverse onboarding.
     We use role-scoped Workspaces (fixtures) + role profiles + default_workspace."""
     return
+
+
+# --- Site YAML applier (Website Settings + Web Page) -------------------------
+@frappe.whitelist()
+def apply_site_yaml(path: str):
+    if not path:
+        frappe.throw("Missing 'path' (e.g. blueprints/mtc/site.yaml)")
+
+    pkg_base = os.path.dirname(__file__)  # .../zanaverse_onboarding
+    fs_path = path if os.path.isabs(path) else os.path.join(pkg_base, path)
+    if not os.path.isfile(fs_path):
+        frappe.throw(f"Blueprint file not found: {path}")
+    if yaml is None:
+        frappe.throw("PyYAML not available")
+
+    with open(fs_path, "r", encoding="utf-8") as f:
+        data = yaml.safe_load(f) or {}
+
+    target_site = (data.get("site") or "").strip() or frappe.local.site
+    if target_site != frappe.local.site:
+        frappe.throw(f"Blueprint site={target_site} does not match active site={frappe.local.site}")
+
+    apply = data.get("apply") or {}
+
+    # 1) Website Settings
+    ws_payload = apply.get("Website Settings") or {}
+    if ws_payload:
+        ws = frappe.get_single("Website Settings")
+        for k, v in ws_payload.items():
+            if hasattr(ws, k):
+                v = int(bool(v)) if isinstance(v, bool) else v
+                setattr(ws, k, v)
+        ws.save(ignore_permissions=True)
+        frappe.clear_cache(doctype="Website Settings")
+
+    # 2) Web Page(s) (optional)
+    for row in (apply.get("Web Page") or []):
+        title = (row.get("title") or "").strip() or row.get("name")
+        if not title:
+            continue
+        route = (row.get("route") or "").strip()
+        content_type = (row.get("content_type") or "HTML").strip()
+        html = row.get("html") or row.get("content") or ""
+
+        key_filters = {"route": route} if route else {"title": title}
+        existing = frappe.db.exists("Web Page", key_filters)
+
+        fields = {
+            "title": title,
+            "published": int(bool(row.get("published", 1))),
+            "content_type": content_type,
+        }
+        if content_type.upper() == "HTML":
+            fields["html"] = html
+        else:
+            fields["content"] = html
+
+        if existing:
+            doc = frappe.get_doc("Web Page", existing if isinstance(existing, str) else existing[0])
+            for k, v in fields.items():
+                setattr(doc, k, v)
+            if route:
+                doc.route = route
+            doc.save(ignore_permissions=True)
+        else:
+            payload = {"doctype": "Web Page", **fields}
+            if route:
+                payload["route"] = route
+            frappe.get_doc(payload).insert(ignore_permissions=True)
+
+    frappe.db.commit()
+    return {"ok": True, "site": target_site,
+            "applied": {"Website Settings": bool(ws_payload),
+                        "Web Page": len(apply.get("Web Page") or [])}}
