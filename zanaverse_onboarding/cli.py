@@ -1395,3 +1395,24 @@ def apply_site_yaml(path: str):
     return {"ok": True, "site": target_site,
             "applied": {"Website Settings": bool(ws_payload),
                         "Web Page": len(apply.get("Web Page") or [])}}
+
+@frappe.whitelist()
+def assert_homepage_login(expected: str = "login", require_hide_login: int | None = 0):
+    """
+    Fail (frappe.throw) if Website Settings.home_page != expected.
+    Optionally also enforce hide_login flag (default 0).
+    Returns {"ok": True, "home_page": "..."} on success.
+    """
+    ws = frappe.get_single("Website Settings")
+    home = (ws.home_page or "").strip()
+    if home != expected:
+        frappe.throw(f"Expected Website Settings.home_page='{expected}' but found '{home}'")
+
+    if require_hide_login is not None:
+        current = int(bool(getattr(ws, "hide_login", 0)))
+        if current != int(bool(require_hide_login)):
+            frappe.throw(
+                f"Expected Website Settings.hide_login={int(bool(require_hide_login))} but found {current}"
+            )
+
+    return {"ok": True, "home_page": home, "hide_login": int(bool(getattr(ws, "hide_login", 0)))}
