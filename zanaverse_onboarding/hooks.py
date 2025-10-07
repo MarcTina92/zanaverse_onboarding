@@ -11,22 +11,41 @@ app_license = "mit"
 # ---------------------------
 # Permission Query Conditions
 # ---------------------------
-# Build PQC map from your policy at import-time, but fail safe if no site context yet.
+
 try:
     from zanaverse_onboarding import permissions as _perm
     _policy = _perm._load_policy()
+
+    # Build from policy if present…
     permission_query_conditions = {
         dt: f"zanaverse_onboarding.permissions.pqc_{dt.lower().replace(' ', '_')}"
         for dt, cfg in (_policy.get("pqc_doctypes") or {}).items()
         if cfg and cfg.get("enabled") and hasattr(_perm, f"pqc_{dt.lower().replace(' ', '_')}")
     }
-except Exception:
-    permission_query_conditions = {}
 
-# Optional per-doctype has_permission hooks
+    # …then force-map our collaboration-critical PQCs (ensure they’re always on)
+    permission_query_conditions.update({
+        "Project":   "zanaverse_onboarding.permissions.pqc_project",
+        "Task":      "zanaverse_onboarding.permissions.pqc_task",
+        "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet",
+    })
+except Exception:
+    permission_query_conditions = {
+        "Project":   "zanaverse_onboarding.permissions.pqc_project",
+        "Task":      "zanaverse_onboarding.permissions.pqc_task",
+        "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet",
+    }
+
+# -------------------------------
+# Per-doctype has_permission hooks
+# -------------------------------
 has_permission = {
-    "Employee": "zanaverse_onboarding.permissions.has_permission_employee",
+    "Employee":  "zanaverse_onboarding.permissions.has_permission_employee",
+    "Project":   "zanaverse_onboarding.permissions.has_permission_project",
+    "Task":      "zanaverse_onboarding.permissions.has_permission_task",
+    "Timesheet": "zanaverse_onboarding.permissions.has_permission_timesheet",
 }
+
 
 # --------------
 # Migrate Hooks

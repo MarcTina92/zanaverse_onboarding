@@ -211,6 +211,15 @@ def _autogen_pqc_wrappers():
 
         setattr(mod, fn_name, _make(dt))
 
+def pqc_timesheet(user):
+    if _pqc_bypass(user):
+        return ""
+    base  = _pqc_base_from_policy("Timesheet", user)  # company/brand per policy
+    owner = f"`tabTimesheet`.`owner` = {frappe.db.escape(user)}"
+    conds = [c for c in [base, owner] if c]
+    return " OR ".join(f"({c})" for c in conds) if conds else ""
+
+
 # Run once at import-time so hooks can see the generated functions
 #_autogen_pqc_wrappers(). - remove later
 
@@ -292,15 +301,26 @@ def _exists_project_membership(user: str) -> str:
           and pu.parenttype = 'Project'
           and pu.user = {u}
     )"""
+def _exists_project_assignment(user: str) -> str:
+    u = frappe.db.escape(user)
+    return f"""exists(
+        select 1
+        from `tabToDo` td
+        where td.reference_type = 'Project'
+          and td.reference_name = `tabProject`.`name`
+          and td.allocated_to = {u}
+    )"""
+
 
 def pqc_project(user):
     if _pqc_bypass(user):
         return ""  # full visibility
-    base = _pqc_base_from_policy("Project", user)
-    members = _exists_project_membership(user)
-    if base and members:
-        return f"(({base}) OR {members})"
-    return members or base or ""
+    base     = _pqc_base_from_policy("Project", user)
+    members  = _exists_project_membership(user)
+    assigned = _exists_project_assignment(user)
+    conds = [c for c in [base, members, assigned] if c]
+    return " OR ".join(f"({c})" for c in conds) if conds else ""
+
 
 def pqc_task(user):
     if _pqc_bypass(user):
@@ -355,6 +375,69 @@ def has_permission_generic(doc, ptype, user, **kwargs):
 # Backward-compatible wrapper kept for your current hooks.py
 def has_permission_employee(doc, ptype, user, **kwargs):
     return has_permission_generic(doc, ptype, user, **kwargs)
+
+def _user_companies(user: str) -> set[str]:
+    return _allowed(user, "Company")
+
+def _is_project_member(project: str, user: str) -> bool:
+    return bool(frappe.db.exists("Project User", {
+        "parent": project, "parenttype": "Project", "user": user
+    }))
+
+def _is_assigned(doctype: str, name: str, user: str) -> bool:
+    return bool(frappe.db.exists("ToDo", {
+        "reference_type": doctype,
+        "reference_name": name,
+        "allocated_to": user
+    }))
+
+def has_permission_project(doc, ptype, user, **kwargs):
+    if _pqc_bypass(user) or "System Manager" in _roles_for(user) or _has_sensitive_access(doc.doctype, user):
+        return True
+    if getattr(doc, "company", None) in _user_companies(user):
+        return True
+    if _is_project_member(doc.name, user):
+        return True
+    if _is_assigned("Project", doc.name, user):
+        return True
+    return False
+
+def has_permission_task(doc, ptype, user, **kwargs):
+    if _pqc_bypass(user) or "System Manager" in _roles_for(user) or _has_sensitive_access(doc.doctype, user):
+        return True
+    # direct company or via parent Project
+    if getattr(doc, "company", None) in _user_companies(user):
+        return True
+    if getattr(doc, "project", None):
+        proj_company = frappe.db.get_value("Project", doc.project, "company")
+        if proj_company in _user_companies(user):
+            return True
+    # collaboration overrides
+    if getattr(doc, "project", None) and _is_project_member(doc.project, user):
+        return True
+    if _is_assigned("Task", doc.name, user):
+        return True
+    return False
+
+def has_permission_timesheet(doc, ptype, user, **kwargs):
+    if _pqc_bypass(user) or "System Manager" in _roles_for(user) or _has_sensitive_access(doc.doctype, user):
+        return True
+    # owner can always see their own timesheets
+    if getattr(doc, "owner", None) == user:
+        return True
+    # company scope
+    if getattr(doc, "company", None) in _user_companies(user):
+        return True
+    # optional: allow if linked Task is assigned to user
+    task = getattr(doc, "task", None)
+    if task and _is_assigned("Task", task, user):
+        return True
+    return False
+
+def _has_sensitive_access(doctype: str, user: str) -> bool:
+    roles_needed = _sensitive_roles_for(doctype)
+    return bool(roles_needed and (_roles_for(user) & roles_needed))
+
 
 
 # ... all function defs incl. pqc_project / pqc_task ...
