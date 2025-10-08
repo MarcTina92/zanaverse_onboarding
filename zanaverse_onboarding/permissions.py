@@ -439,6 +439,24 @@ def _has_sensitive_access(doctype: str, user: str) -> bool:
     return bool(roles_needed and (_roles_for(user) & roles_needed))
 
 
+def has_permission_task(doc, ptype, user, **kwargs):
+    if _pqc_bypass(user) or "System Manager" in _roles_for(user) or _has_sensitive_access(doc.doctype, user):
+        return True
+    if getattr(doc, "owner", None) == user:
+        return True
+    if getattr(doc, "company", None) in _user_companies(user):
+        return True
+    if getattr(doc, "project", None):
+        proj_company = frappe.db.get_value("Project", doc.project, "company")
+        if proj_company in _user_companies(user):
+            return True
+        if _is_project_member(doc.project, user):
+            return True
+    if _is_assigned("Task", doc.name, user):
+        return True
+    return False
+
+
 
 # ... all function defs incl. pqc_project / pqc_task ...
 
