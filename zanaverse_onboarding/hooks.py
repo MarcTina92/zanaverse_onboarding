@@ -66,6 +66,7 @@ after_migrate = [
     "zanaverse_onboarding.cli.verify_workspace_visibility_invariants",
     "zanaverse_onboarding.collab.ensure_task_project_picker",
     "zanaverse_onboarding.collab.ensure_project_financial_privacy", 
+    "zanaverse_onboarding.collab.ensure_task_financial_privacy",
 ]
 
 # If you also ship install hooks, register them only if present.

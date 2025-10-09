@@ -92,3 +92,17 @@ project_field_privacy:
     - Accounts Manager
   strict_sync: true
   create_if_missing: true
+
+# policy.yaml
+task_field_privacy:
+  enabled: true
+  permlevel: 1
+  fields:
+    - total_costing_amount
+    - total_expense_claim
+    - total_billing_amount
+  level1_roles:
+    - Accounts User
+    - Accounts Manager
+  strict_sync: true         # remove other roles' read @ L1
+  create_if_missing: true

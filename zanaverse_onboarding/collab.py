@@ -234,3 +234,75 @@ def _exists_other_assignment_on_same_project(user, project, exclude_todo_name=No
         tuple(params),
         as_dict=False,
     ) != ()
+
+def ensure_task_financial_privacy():
+    pol = _load_policy() or {}
+    cfg = (pol.get("task_field_privacy") or {})
+    if not cfg or not cfg.get("enabled"):
+        return
+
+    doctype = "Task"
+    permlevel = int(cfg.get("permlevel", 1))
+    fields = list(cfg.get("fields") or [])
+    roles  = list(cfg.get("level1_roles") or [])
+    strict = bool(cfg.get("strict_sync"))
+    create_if_missing = bool(cfg.get("create_if_missing", True))
+
+    if not fields or not roles:
+        return
+
+    meta = frappe.get_meta(doctype)
+
+    # 1) bump fields to permlevel via Property Setters
+    for field in fields:
+        if not meta.has_field(field):
+            continue
+        name = frappe.db.exists("Property Setter", {
+            "doc_type": doctype, "field_name": field, "property": "permlevel"
+        })
+        if name:
+            doc = frappe.get_doc("Property Setter", name)
+            if str(doc.value) != str(permlevel):
+                doc.value = str(permlevel); doc.save()
+        else:
+            frappe.get_doc({
+                "doctype": "Property Setter",
+                "doc_type": doctype,
+                "field_name": field,
+                "property": "permlevel",
+                "property_type": "Int",
+                "value": str(permlevel),
+            }).insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    # 2) ensure Custom DocPerm(read=1) at that permlevel for the roles
+    for role in roles:
+        row = frappe.get_all("Custom DocPerm",
+            filters={"parent": doctype, "permlevel": permlevel, "role": role},
+            fields=["name","read"])
+        if row:
+            d = frappe.get_doc("Custom DocPerm", row[0]["name"])
+            if int(d.read or 0) != 1:
+                d.read = 1; d.save()
+        elif create_if_missing:
+            frappe.get_doc({
+                "doctype": "Custom DocPerm",
+                "parent": doctype,
+                "parenttype": "DocType",
+                "parentfield": "permissions",
+                "role": role,
+                "permlevel": permlevel,
+                "read": 1,
+            }).insert(ignore_permissions=True)
+    frappe.db.commit()
+
+    # 3) optional strict sync: remove read@L1 from roles not in level1_roles
+    if strict:
+        others = frappe.get_all("Custom DocPerm",
+            filters={"parent": doctype, "permlevel": permlevel, "read": 1},
+            fields=["name","role"])
+        for r in others:
+            if r["role"] not in roles:
+                d = frappe.get_doc("Custom DocPerm", r["name"])
+                d.read = 0; d.save()
+        frappe.db.commit()
