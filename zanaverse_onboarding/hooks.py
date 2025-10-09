@@ -22,19 +22,19 @@ try:
     permission_query_conditions = {}
     for dt, cfg in (_policy.get("pqc_doctypes") or {}).items():
         fn_slug = dt.lower().replace(" ", "_")
-        if dt.strip().lower() == "task":  # exclude Task
+        if dt.strip().lower() in {"task", "project"}:  # exclude Task & Project
             continue
         if cfg and cfg.get("enabled") and hasattr(_perm, f"pqc_{fn_slug}"):
             permission_query_conditions[dt] = f"zanaverse_onboarding.permissions.pqc_{fn_slug}"
 
     # …then force-map collaboration-critical PQCs
     permission_query_conditions.update({
-        "Project":   "zanaverse_onboarding.permissions.pqc_project",
+    #    "Project":   "zanaverse_onboarding.permissions.pqc_project",
         "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet"
     })
 except Exception:
     permission_query_conditions = {
-        "Project":   "zanaverse_onboarding.permissions.pqc_project",
+    #    "Project":   "zanaverse_onboarding.permissions.pqc_project",
         "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet"
     }
 
