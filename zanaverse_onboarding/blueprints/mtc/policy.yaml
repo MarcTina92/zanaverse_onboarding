@@ -53,7 +53,7 @@ pqc_doctypes:
 
   # Projects (company scoping + collab overrides in permissions.py)
   "Project":              { enabled: false,  company_field: "",  brand_field: "" }
-  "Task":                 { enabled: true,  company_field: company,  brand_field: "" }
+  "Task":                 { enabled: false,  company_field: company,  brand_field: "" }
   "Timesheet":            { enabled: true,  company_field: company,  brand_field: "" }
 
   # HR / Hiring
