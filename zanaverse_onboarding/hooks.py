@@ -8,6 +8,8 @@ app_description = "Client onboarding with blueprints"
 app_email = "info@marctinaconsultancy.com"
 app_license = "mit"
 
+# hooks.py (excerpt)
+
 # ---------------------------
 # Permission Query Conditions
 # ---------------------------
@@ -17,23 +19,23 @@ try:
     _policy = _perm._load_policy()
 
     # Build from policy if present…
-    permission_query_conditions = {
-        dt: f"zanaverse_onboarding.permissions.pqc_{dt.lower().replace(' ', '_')}"
-        for dt, cfg in (_policy.get("pqc_doctypes") or {}).items()
-        if cfg and cfg.get("enabled") and hasattr(_perm, f"pqc_{dt.lower().replace(' ', '_')}")
-    }
+    permission_query_conditions = {}
+    for dt, cfg in (_policy.get("pqc_doctypes") or {}).items():
+        fn_slug = dt.lower().replace(" ", "_")
+        if dt.strip().lower() == "task":  # exclude Task
+            continue
+        if cfg and cfg.get("enabled") and hasattr(_perm, f"pqc_{fn_slug}"):
+            permission_query_conditions[dt] = f"zanaverse_onboarding.permissions.pqc_{fn_slug}"
 
-    # …then force-map our collaboration-critical PQCs (ensure they’re always on)
+    # …then force-map collaboration-critical PQCs
     permission_query_conditions.update({
         "Project":   "zanaverse_onboarding.permissions.pqc_project",
-        "Task":      "zanaverse_onboarding.permissions.pqc_task",
-        "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet",
+        "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet"
     })
 except Exception:
     permission_query_conditions = {
         "Project":   "zanaverse_onboarding.permissions.pqc_project",
-        "Task":      "zanaverse_onboarding.permissions.pqc_task",
-        "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet",
+        "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet"
     }
 
 # -------------------------------
@@ -42,7 +44,7 @@ except Exception:
 has_permission = {
     "Employee":  "zanaverse_onboarding.permissions.has_permission_employee",
 #    "Project":   "zanaverse_onboarding.permissions.has_permission_project",
-    "Task":      "zanaverse_onboarding.permissions.has_permission_task",
+#    "Task":      "zanaverse_onboarding.permissions.has_permission_task",
     "Timesheet": "zanaverse_onboarding.permissions.has_permission_timesheet",
 }
 
