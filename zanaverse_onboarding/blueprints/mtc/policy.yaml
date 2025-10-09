@@ -52,7 +52,7 @@ pqc_doctypes:
   "Item":                 { enabled: false, company_field: "",       brand_field: "" }
 
   # Projects (company scoping + collab overrides in permissions.py)
-  "Project":              { enabled: true,  company_field: company,  brand_field: "" }
+  "Project":              { enabled: false,  company_field: "",  brand_field: "" }
   "Task":                 { enabled: true,  company_field: company,  brand_field: "" }
   "Timesheet":            { enabled: true,  company_field: company,  brand_field: "" }
 
@@ -71,3 +71,24 @@ pqc_doctypes:
 pqc_bypass_roles:
   - System Manager
   # - Global Visibility
+
+collab:
+  on_task_assignment: share_write   # one of: share_write | project_user | none
+  ignore_user_permissions_on_task_project: true
+
+project_field_privacy:
+  enabled: true
+  permlevel: 1
+  fields:
+    - total_costing_amount
+    - total_billed_amount
+    - total_purchase_cost
+    - total_expense_claim
+    - gross_margin
+    - per_gross_margin
+    - margin 
+  level1_roles:
+    - Accounts User
+    - Accounts Manager
+  strict_sync: true
+  create_if_missing: true

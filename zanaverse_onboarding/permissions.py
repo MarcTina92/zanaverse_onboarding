@@ -80,7 +80,7 @@ def _load_policy() -> dict:
             # CRM / Sales
             "Lead":            {"enabled": True,  "company_field": "company", "brand_field": "brand"},
             "Opportunity":     {"enabled": True,  "company_field": "company", "brand_field": "brand"},
-            "Customer":        {"enabled": True,  "company_field": "company", "brand_field": "brand"},
+            "Customer":        {"enabled": False,  "company_field": "", "brand_field": "brand"},
             "Quotation":       {"enabled": True,  "company_field": "company", "brand_field": "brand"},
             "Sales Order":     {"enabled": True,  "company_field": "company", "brand_field": "brand"},
             # Projects / HR
@@ -313,8 +313,15 @@ def _exists_project_assignment(user: str) -> str:
 
 
 def pqc_project(user):
+    # If policy disabled for Project → no PQC at all (OOTB listing)
+    pol = _load_policy() or {}
+    cfg = (pol.get("pqc_doctypes") or {}).get("Project") or {}
+    if not cfg.get("enabled"):
+        return ""
+
     if _pqc_bypass(user):
         return ""  # full visibility
+
     base     = _pqc_base_from_policy("Project", user)
     members  = _exists_project_membership(user)
     assigned = _exists_project_assignment(user)
@@ -322,11 +329,13 @@ def pqc_project(user):
     return " OR ".join(f"({c})" for c in conds) if conds else ""
 
 
+
 def pqc_task(user):
     if _pqc_bypass(user):
-        return ""  # full visibility
+        return ""
     base = _pqc_base_from_policy("Task", user)
     u = frappe.db.escape(user)
+
     members = f"""exists(
         select 1
         from `tabProject User` pu
@@ -335,14 +344,18 @@ def pqc_task(user):
           and pu.parenttype = 'Project'
           and pu.user = {u}
     )"""
+
     assigned = f"""exists(
         select 1
         from `tabToDo` td
         where td.reference_type = 'Task'
           and td.reference_name = `tabTask`.`name`
-          and td.allocated_to = {u}
+          and td.allocated_to   = {u}
     )"""
-    conds = [c for c in [base, members, assigned] if c]
+
+    shared_write = _exists_project_write_share_sql(user)
+
+    conds = [c for c in [base, members, assigned, shared_write] if c]
     return " OR ".join(f"({c})" for c in conds) if conds else ""
 
 
@@ -390,34 +403,7 @@ def _is_assigned(doctype: str, name: str, user: str) -> bool:
         "reference_name": name,
         "allocated_to": user
     }))
-
-def has_permission_project(doc, ptype, user, **kwargs):
-    if _pqc_bypass(user) or "System Manager" in _roles_for(user) or _has_sensitive_access(doc.doctype, user):
-        return True
-    if getattr(doc, "company", None) in _user_companies(user):
-        return True
-    if _is_project_member(doc.name, user):
-        return True
-    if _is_assigned("Project", doc.name, user):
-        return True
-    return False
-
-def has_permission_task(doc, ptype, user, **kwargs):
-    if _pqc_bypass(user) or "System Manager" in _roles_for(user) or _has_sensitive_access(doc.doctype, user):
-        return True
-    # direct company or via parent Project
-    if getattr(doc, "company", None) in _user_companies(user):
-        return True
-    if getattr(doc, "project", None):
-        proj_company = frappe.db.get_value("Project", doc.project, "company")
-        if proj_company in _user_companies(user):
-            return True
-    # collaboration overrides
-    if getattr(doc, "project", None) and _is_project_member(doc.project, user):
-        return True
-    if _is_assigned("Task", doc.name, user):
-        return True
-    return False
+    
 
 def has_permission_timesheet(doc, ptype, user, **kwargs):
     if _pqc_bypass(user) or "System Manager" in _roles_for(user) or _has_sensitive_access(doc.doctype, user):
@@ -452,10 +438,30 @@ def has_permission_task(doc, ptype, user, **kwargs):
             return True
         if _is_project_member(doc.project, user):
             return True
+        if _has_project_write_share(doc.project, user):
+            return True
     if _is_assigned("Task", doc.name, user):
         return True
     return False
 
+
+def _has_project_write_share(project: str, user: str) -> bool:
+    return bool(frappe.db.exists("DocShare", {
+        "share_doctype": "Project",
+        "share_name": project,
+        "user": user,
+        "write": 1,
+    }))
+
+def _exists_project_write_share_sql(user: str) -> str:
+    u = frappe.db.escape(user)
+    return f"""exists(
+        select 1 from `tabDocShare` ds
+        where ds.share_doctype = 'Project'
+          and ds.share_name   = `tabTask`.`project`
+          and ds.user         = {u}
+          and ds.write        = 1
+    )"""
 
 
 # ... all function defs incl. pqc_project / pqc_task ...

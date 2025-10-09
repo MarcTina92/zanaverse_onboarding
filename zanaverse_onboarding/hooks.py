@@ -41,7 +41,7 @@ except Exception:
 # -------------------------------
 has_permission = {
     "Employee":  "zanaverse_onboarding.permissions.has_permission_employee",
-    "Project":   "zanaverse_onboarding.permissions.has_permission_project",
+#    "Project":   "zanaverse_onboarding.permissions.has_permission_project",
     "Task":      "zanaverse_onboarding.permissions.has_permission_task",
     "Timesheet": "zanaverse_onboarding.permissions.has_permission_timesheet",
 }
@@ -62,6 +62,8 @@ except Exception:
 after_migrate = [
     "zanaverse_onboarding.cli.apply_default_workspaces_after_migrate",
     "zanaverse_onboarding.cli.verify_workspace_visibility_invariants",
+    "zanaverse_onboarding.collab.ensure_task_project_picker",
+    "zanaverse_onboarding.collab.ensure_project_financial_privacy", 
 ]
 
 # If you also ship install hooks, register them only if present.
@@ -73,6 +75,18 @@ try:
         after_install = "zanaverse_onboarding.install.after_install"
 except Exception:
     pass
+
+# ---------------------------
+# Collab 
+# ---------------------------
+
+doc_events = {
+    "ToDo": {
+        "after_insert": "zanaverse_onboarding.collab.on_todo_after_insert",
+        "on_trash":     "zanaverse_onboarding.collab.on_todo_on_trash",
+    }
+}
+
 
 # ---------------------------
 # (Leave other sections empty)
