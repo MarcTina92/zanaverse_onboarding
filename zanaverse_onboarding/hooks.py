@@ -29,13 +29,11 @@ try:
 
     # …then force-map collaboration-critical PQCs
     permission_query_conditions.update({
-    #    "Project":   "zanaverse_onboarding.permissions.pqc_project",
-        "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet"
+                "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet"
     })
 except Exception:
     permission_query_conditions = {
-    #    "Project":   "zanaverse_onboarding.permissions.pqc_project",
-        "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet"
+                "Timesheet": "zanaverse_onboarding.permissions.pqc_timesheet"
     }
 
 # -------------------------------

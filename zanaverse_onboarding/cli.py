@@ -1416,3 +1416,42 @@ def assert_homepage_login(expected: str = "login", require_hide_login: int | Non
             )
 
     return {"ok": True, "home_page": home, "hide_login": int(bool(getattr(ws, "hide_login", 0)))}
+
+@frappe.whitelist()
+def verify_task_finance_privacy():
+    """Print & return the effective privacy config for Task finance fields."""
+    finance_fields = {"total_billing_amount", "total_costing_amount", "total_expense_claim"}
+
+    # 1) DocField permlevels
+    levels = {
+        f.fieldname: f.permlevel
+        for f in frappe.get_meta("Task").fields
+        if f.fieldname in finance_fields
+    }
+
+    # 2) Property Setters (belt & suspenders)
+    ps = frappe.get_all(
+        "Property Setter",
+        filters={
+            "doc_type": "Task",
+            "property": "permlevel",
+            "field_name": ["in", list(finance_fields)],
+        },
+        fields=["field_name", "value", "doctype_or_field"],
+        order_by="field_name",
+    )
+
+    # 3) Roles with READ @ permlevel 1
+    roles_l1 = frappe.get_all(
+        "Custom DocPerm",
+        filters={"parent": "Task", "permlevel": 1, "read": 1},
+        pluck="role",
+    )
+
+    out = {
+        "docfield_permlevels": levels,
+        "property_setters": ps,
+        "read_roles_permlevel_1": roles_l1,
+    }
+    print(out)
+    return out
