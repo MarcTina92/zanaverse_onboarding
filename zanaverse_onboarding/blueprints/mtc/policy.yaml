@@ -70,6 +70,8 @@ pqc_doctypes:
 
 pqc_bypass_roles:
   - System Manager
+  - HR Manager
+  - HR User
   # - Global Visibility
 
 collab:
