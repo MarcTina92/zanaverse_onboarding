@@ -24,49 +24,49 @@ sensitive_roles:
   "Project":                         ["Projects Manager"]
   "Timesheet":                       ["Projects Manager"]
 
-strict_default_deny: true
+strict_default_deny: false
 
 # Per-doctype PQC config. Company-only scoping (brand_field is blank).
 pqc_doctypes:
   # CRM / Sales
-  "Lead":             { enabled: true,  company_field: company, brand_field: "" }
-  "Opportunity":      { enabled: true,  company_field: company, brand_field: "" }
+  "Lead":             { enabled: false,  company_field: company, brand_field: "" }
+  "Opportunity":      { enabled: false,  company_field: company, brand_field: "" }
   "Customer":         { enabled: false, company_field: "",      brand_field: "" }   # no native Company
-  "Quotation":        { enabled: true,  company_field: company, brand_field: "" }
-  "Sales Order":      { enabled: true,  company_field: company, brand_field: "" }
-  "Sales Invoice":    { enabled: true,  company_field: company, brand_field: "" }
-  "Delivery Note":    { enabled: true,  company_field: company, brand_field: "" }
-  "Payment Entry":    { enabled: true,  company_field: company, brand_field: "" }
+  "Quotation":        { enabled: false,  company_field: company, brand_field: "" }
+  "Sales Order":      { enabled: false,  company_field: company, brand_field: "" }
+  "Sales Invoice":    { enabled: false,  company_field: company, brand_field: "" }
+  "Delivery Note":    { enabled: false,  company_field: company, brand_field: "" }
+  "Payment Entry":    { enabled: false,  company_field: company, brand_field: "" }
 
   # Buying
   "Supplier":             { enabled: false, company_field: "",       brand_field: "" }
-  "Supplier Quotation":   { enabled: true,  company_field: company,  brand_field: "" }
-  "Purchase Order":       { enabled: true,  company_field: company,  brand_field: "" }
-  "Purchase Receipt":     { enabled: true,  company_field: company,  brand_field: "" }
-  "Purchase Invoice":     { enabled: true,  company_field: company,  brand_field: "" }
+  "Supplier Quotation":   { enabled: false,  company_field: company,  brand_field: "" }
+  "Purchase Order":       { enabled: false,  company_field: company,  brand_field: "" }
+  "Purchase Receipt":     { enabled: false,  company_field: company,  brand_field: "" }
+  "Purchase Invoice":     { enabled: false,  company_field: company,  brand_field: "" }
 
   # Stock / Operations
-  "Warehouse":            { enabled: true,  company_field: company,  brand_field: "" }
-  "Stock Entry":          { enabled: true,  company_field: company,  brand_field: "" }
-  "Stock Ledger Entry":   { enabled: true,  company_field: company,  brand_field: "" }
+  "Warehouse":            { enabled: false,  company_field: company,  brand_field: "" }
+  "Stock Entry":          { enabled: false,  company_field: company,  brand_field: "" }
+  "Stock Ledger Entry":   { enabled: false,  company_field: company,  brand_field: "" }
   "Item":                 { enabled: false, company_field: "",       brand_field: "" }
 
   # Projects (company scoping + collab overrides in permissions.py)
   "Project":              { enabled: false,  company_field: "",  brand_field: "" }
   "Task":                 { enabled: false,  company_field: company,  brand_field: "" }
-  "Timesheet":            { enabled: true,  company_field: company,  brand_field: "" }
+  "Timesheet":            { enabled: false,  company_field: company,  brand_field: "" }
 
   # HR / Hiring
-  "Employee":             { enabled: true,  company_field: company,  brand_field: "" }
+  "Employee":             { enabled: false,  company_field: company,  brand_field: "" }
   "Job Applicant":        { enabled: false, company_field: "",       brand_field: "" }  # disable unless you add a company link
-  "Job Opening":          { enabled: true,  company_field: company,  brand_field: "" }
-  "Attendance":           { enabled: true,  company_field: company,  brand_field: "" }
-  "Expense Claim":        { enabled: true,  company_field: company,  brand_field: "" }
+  "Job Opening":          { enabled: false,  company_field: company,  brand_field: "" }
+  "Attendance":           { enabled: false,  company_field: company,  brand_field: "" }
+  "Expense Claim":        { enabled: false,  company_field: company,  brand_field: "" }
 
   # Accounting / Dimensions
-  "Journal Entry":        { enabled: true,  company_field: company,  brand_field: "" }
-  "Pricing Rule":         { enabled: true,  company_field: company,  brand_field: "" }
-  "Cost Center":          { enabled: true,  company_field: company,  brand_field: "" }
+  "Journal Entry":        { enabled: false,  company_field: company,  brand_field: "" }
+  "Pricing Rule":         { enabled: false,  company_field: company,  brand_field: "" }
+  "Cost Center":          { enabled: false,  company_field: company,  brand_field: "" }
 
 pqc_bypass_roles:
   - System Manager
@@ -76,10 +76,10 @@ pqc_bypass_roles:
 
 collab:
   on_task_assignment: share_write   # one of: share_write | project_user | none
-  ignore_user_permissions_on_task_project: true
+  ignore_user_permissions_on_task_project: false
 
 project_field_privacy:
-  enabled: true
+  enabled: false
   permlevel: 1
   fields:
     - total_costing_amount
@@ -97,7 +97,7 @@ project_field_privacy:
 
 # policy.yaml
 task_field_privacy:
-  enabled: true
+  enabled: false
   permlevel: 1
   fields:
     - total_costing_amount
