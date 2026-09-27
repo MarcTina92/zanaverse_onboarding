@@ -136,6 +136,26 @@ def add_user(email, first_name, last_name="", role_profile=None, roles=None):
         frappe.flags.mute_emails = False
 
 
+def _crm_demo(dry_run, report):
+    """CRM loads demo data when the setup wizard completes. Clear it on every site
+    except those marked zanaverse_environment: staging (where it is exploration data)."""
+    if "crm" not in frappe.get_installed_apps():
+        return
+    if frappe.conf.get("zanaverse_environment") == "staging":
+        report.append("keep    CRM demo data (staging site)")
+        return
+    from crm.demo.api import clear_demo_data, get_demo_state
+    from crm.demo.users import DEMO_USER_EMAILS
+    contacts = frappe.get_all("Contact", filters={"email_id": ["in", list(DEMO_USER_EMAILS)]}, pluck="name")
+    if not get_demo_state().get("demo_data_created") and not contacts:
+        return
+    report.append(f"clear   CRM demo data (+{len(contacts)} demo contacts)")
+    if not dry_run:
+        clear_demo_data()
+        for c in contacts:
+            frappe.delete_doc("Contact", c, ignore_permissions=True, force=True)
+
+
 def apply(name=None, dry_run=False):
     name = name or frappe.conf.get("zanaverse_blueprint")
     if not name:
@@ -158,6 +178,7 @@ def apply(name=None, dry_run=False):
             _collect_perms(bp_name, entry, installed, perm_sets)
     _prune_custom_docperm(perm_sets, dry_run, report)
     _role_profiles(profiles, dry_run, report)
+    _crm_demo(dry_run, report)
 
     for key, val in features.items():
         report.append(f"feature {key} = {int(bool(val))}")
