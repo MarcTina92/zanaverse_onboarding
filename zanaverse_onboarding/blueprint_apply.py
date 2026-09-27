@@ -139,7 +139,8 @@ def add_user(email, first_name, last_name="", role_profile=None, roles=None):
 def apply(name=None, dry_run=False):
     name = name or frappe.conf.get("zanaverse_blueprint")
     if not name:
-        frappe.throw("No blueprint given and none set in site_config (zanaverse_blueprint)")
+        print(f"NO BLUEPRINT for {frappe.local.site}: pass name=... or set site_config zanaverse_blueprint. Nothing applied.")
+        return
     installed = set(frappe.get_installed_apps())
     has_settings = bool(frappe.db.exists("DocType", "Zanaverse Settings"))
     report, features = [f"blueprint {name} ({'DRY RUN' if dry_run else 'APPLY'}) on {frappe.local.site}"], {}
