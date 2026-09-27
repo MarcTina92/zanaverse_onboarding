@@ -53,6 +53,30 @@ def _import_records(bp_name, entry, installed, dry_run, report):
         import_doc(path)
 
 
+def _collect_perms(bp_name, entry, installed, perm_sets):
+    if set(entry.get("requires_apps") or []) - installed:
+        return
+    with open(os.path.join(_bp_dir(bp_name), entry["file"]), encoding="utf-8") as f:
+        data = json.load(f)
+    for d in data if isinstance(data, list) else [data]:
+        if d.get("doctype") == "Custom DocPerm":
+            perm_sets.setdefault(d["parent"], set()).add(d["name"])
+
+
+def _prune_custom_docperm(perm_sets, dry_run, report):
+    """A blueprint that defines Custom DocPerm for a doctype owns that doctype's complete set.
+    Rows not in the blueprint (e.g. standard rows Frappe copies in when the first custom row
+    appears) are removed, otherwise the most permissive row would win."""
+    for parent, keep in perm_sets.items():
+        extra = frappe.get_all("Custom DocPerm", filters={"parent": parent, "name": ["not in", list(keep)]}, fields=["name", "role", "permlevel"])
+        for r in extra:
+            report.append(f"delete  Custom DocPerm: {r.name} ({parent} | {r.role} | pl {r.permlevel}) not in blueprint")
+            if not dry_run:
+                frappe.delete_doc("Custom DocPerm", r.name, ignore_permissions=True, force=True)
+        if extra and not dry_run:
+            frappe.clear_cache(doctype=parent)
+
+
 def _setup_company(company, dry_run, report):
     if not company:
         return
@@ -99,7 +123,10 @@ def add_user(email, first_name, last_name="", role_profile=None, roles=None):
         user = frappe.get_doc("User", email) if frappe.db.exists("User", email) else frappe.new_doc("User")
         user.update({"email": email, "first_name": first_name, "last_name": last_name, "user_type": "System User", "send_welcome_email": 0})
         if role_profile:
-            user.role_profile_name = role_profile
+            if user.meta.get_field("role_profiles"):
+                user.set("role_profiles", [{"role_profile": role_profile}])
+            else:
+                user.role_profile_name = role_profile
         user.save(ignore_permissions=True)
         if roles:
             user.add_roles(*roles)
@@ -121,12 +148,14 @@ def apply(name=None, dry_run=False):
     company = next((bp.get("company") for _, bp in reversed(chain) if bp.get("company")), None)
     _setup_company(company, dry_run, report)
 
-    profiles = []
+    profiles, perm_sets = [], {}
     for bp_name, bp in chain:
         features.update(bp.get("features") or {})
         profiles.extend(bp.get("role_profiles") or [])
         for entry in bp.get("records") or []:
             _import_records(bp_name, entry, installed, dry_run, report)
+            _collect_perms(bp_name, entry, installed, perm_sets)
+    _prune_custom_docperm(perm_sets, dry_run, report)
     _role_profiles(profiles, dry_run, report)
 
     for key, val in features.items():
