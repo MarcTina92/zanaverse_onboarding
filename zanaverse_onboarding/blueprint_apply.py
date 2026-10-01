@@ -15,6 +15,8 @@ import os
 import frappe
 import yaml
 
+from zanaverse_onboarding import blueprint_extras as _x
+
 
 def _bp_dir(name):
     return frappe.get_app_path("zanaverse_blueprints", "blueprints", name)
@@ -42,7 +44,7 @@ def _import_records(bp_name, entry, installed, dry_run, report):
     if missing:
         report.append(f"skip    {bp_name}/{rel}  (needs {sorted(missing)})")
         return
-    path = os.path.join(_bp_dir(bp_name), rel)
+    path = _x.render_record_file(_bp_dir(bp_name), rel)
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
     for d in data if isinstance(data, list) else [data]:
@@ -168,6 +170,9 @@ def apply(name=None, dry_run=False):
     chain = _chain(name)
     company = next((bp.get("company") for _, bp in reversed(chain) if bp.get("company")), None)
     _setup_company(company, dry_run, report)
+    _x.build_context(chain, company)
+    _x.apply_site_config(chain, dry_run, report)
+    _x.apply_assets(chain, _bp_dir, dry_run, report)
 
     profiles, perm_sets = [], {}
     for bp_name, bp in chain:
@@ -176,6 +181,7 @@ def apply(name=None, dry_run=False):
         for entry in bp.get("records") or []:
             _import_records(bp_name, entry, installed, dry_run, report)
             _collect_perms(bp_name, entry, installed, perm_sets)
+    _x.apply_settings(chain, dry_run, report)
     _prune_custom_docperm(perm_sets, dry_run, report)
     _role_profiles(profiles, dry_run, report)
     _crm_demo(dry_run, report)
