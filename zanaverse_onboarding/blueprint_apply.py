@@ -47,6 +47,10 @@ def _import_records(bp_name, entry, installed, dry_run, report):
     path = _x.render_record_file(_bp_dir(bp_name), rel)
     with open(path, encoding="utf-8") as f:
         data = json.load(f)
+    if entry.get("create_only"):
+        path, data = _x.only_missing(path, data, bp_name, rel, report)
+        if not data:
+            return
     for d in data if isinstance(data, list) else [data]:
         action = "update" if frappe.db.exists(d["doctype"], d["name"]) else "create"
         report.append(f"{action:7} {d['doctype']}: {d['name']}  ({bp_name}/{rel})")

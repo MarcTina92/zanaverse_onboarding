@@ -116,3 +116,20 @@ def apply_settings(chain, dry_run, report):
                 frappe.db.set_single_value(doctype, field, val)
             else:
                 frappe.db.set_value(doctype, name, field, val)
+
+
+def only_missing(path, data, bp_name, rel, report):
+    """For create_only record files: keep existing records untouched, import only the missing ones."""
+    docs = data if isinstance(data, list) else [data]
+    missing = []
+    for d in docs:
+        if frappe.db.exists(d["doctype"], d["name"]):
+            report.append(f"keep    {d['doctype']}: {d['name']}  ({bp_name}/{rel}, create_only)")
+        else:
+            missing.append(d)
+    if not missing:
+        return path, []
+    fd, tmp = tempfile.mkstemp(prefix="zv-bp-", suffix=".json")
+    with os.fdopen(fd, "w", encoding="utf-8") as f:
+        json.dump(missing, f)
+    return tmp, missing
