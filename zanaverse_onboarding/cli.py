@@ -1158,66 +1158,108 @@ def provision(
 # Doctor command (nice-to-have)
 # --------------------------------------------------------------------------------------
 
-@click.command("zv-doctor")
-@click.option("--site", "site_name", help="Frappe site to use (bench also accepts --site).")
-def doctor(site_name: str | None = None):
-    """Sanity-check policy.yaml against DocType metadata and show registered PQCs."""
-    import os as _os
+from frappe.commands import pass_context
 
-    site = getattr(frappe.local, "site", None) or site_name or _os.environ.get("FRAPPE_SITE")
-    if not site:
-        click.echo("No site context. Run as: bench --site <your-site> zv-doctor")
-        return
 
-    did_connect = False
-    if getattr(frappe.local, "site", None) != site:
-        frappe.init(site=site)
-        frappe.connect()
-        did_connect = True
+def _doctor_site(site):
+    """Return 1 if the site needs attention, else 0. Prints a short report."""
+    from frappe.utils import now_datetime
+    out, state = [], {"warn": 0}
 
+    def ok(m):
+        out.append(f"  ✅ {m}")
+
+    def bad(m):
+        state["warn"] = 1
+        out.append(f"  ⚠️  {m}")
+
+    conf = frappe.conf or {}
+
+    # 1. scheduler: switched on, not paused, not in maintenance; and jobs actually running
+    if not frappe.db.get_single_value("System Settings", "enable_scheduler"):
+        bad(f"Scheduler DISABLED in System Settings  ->  bench --site {site} scheduler enable")
+    elif conf.get("pause_scheduler"):
+        bad(f"Scheduler PAUSED in site_config  ->  bench --site {site} scheduler resume")
+    elif conf.get("maintenance_mode"):
+        bad("Site is in maintenance mode")
+    else:
+        ok("Scheduler enabled")
+        last = frappe.db.sql("select max(creation) from `tabScheduled Job Log`")[0][0]
+        if not last:
+            bad("No scheduled job has ever run (workers/scheduler process down?)")
+        else:
+            mins = int((now_datetime() - last).total_seconds() // 60)
+            (ok if mins <= 60 else bad)(f"Last scheduled job ran {mins} min ago")
+
+    # 2. host_name: PDFs (wkhtmltopdf) fetch logos/CSS through it
+    hn = conf.get("host_name") or ""
+    if not hn:
+        bad("host_name not set in site_config (PDF logos/CSS will not load)")
+    elif not hn.startswith("https://"):
+        bad(f"host_name is not https: {hn}")
+    else:
+        ok(f"host_name {hn}")
+
+    # 3. permission policy (the original zv-doctor check)
     try:
         from zanaverse_onboarding import permissions as perm
-
-        pol = perm._load_policy()
-        print("strict_default_deny:", pol.get("strict_default_deny"))
-        print("pqc_bypass_roles:", pol.get("pqc_bypass_roles"))
-
-        hook_map = frappe.get_hooks("permission_query_conditions")
-        print("\nRegistered PQCs for policy doctypes:")
-        problems = []
-
+        pol = perm._load_policy() or {}
+        mismatches = []
+        hooks = frappe.get_hooks("permission_query_conditions") or {}
+        inactive = 0
         for dt, cfg in (pol.get("pqc_doctypes") or {}).items():
-            if not (cfg and cfg.get("enabled")):
+            if not (cfg and cfg.get("enabled")) or not frappe.db.exists("DocType", dt):
                 continue
-
             fn = f"zanaverse_onboarding.permissions.pqc_{dt.lower().replace(' ', '_')}"
-            hooked = fn in (hook_map.get(dt) or [])
-            print(f" - {dt}: {fn}  (hooked: {hooked})")
-
-            cf = (cfg.get("company_field") or "").strip()
-            bf = (cfg.get("brand_field") or "").strip()
+            if fn not in (hooks.get(dt) or []):
+                inactive += 1   # legacy policy entry with no active hook: nothing enforces it
+                continue
             meta = frappe.get_meta(dt, cached=True)
-
-            has_c = bool(cf) and meta.has_field(cf)
-            has_b = bool(bf) and meta.has_field(bf)
-
-            if (cf and not has_c) or (bf and not has_b):
-                problems.append({
-                    "doctype": dt,
-                    "company_field": cf, "company_exists": has_c,
-                    "brand_field": bf,   "brand_exists": has_b,
-                })
-
-        if problems:
-            print("\n⚠️  Field mismatches found:")
-            for p in problems:
-                print(" ", p)
+            for key in ("company_field", "brand_field"):
+                f = (cfg.get(key) or "").strip()
+                if f and not meta.has_field(f):
+                    mismatches.append(f"{dt}.{f}")
+        if mismatches:
+            bad(f"ACTIVE policy rules reference missing fields: {', '.join(mismatches)}")
         else:
-            print("\n✅ Policy fields match DocTypes.")
-    finally:
-        if did_connect:
-            frappe.destroy()
+            ok("Active permission-policy rules match DocTypes")
+        if inactive:
+            out.append(f"  ·  {inactive} legacy policy.yaml entries have no active hook (not enforced; safe to ignore)")
+    except Exception as e:
+        out.append(f"  ·  policy check skipped ({e.__class__.__name__})")
 
+    print(f"\n{site}: {'⚠️  NEEDS ATTENTION' if state['warn'] else '✅ healthy'}")
+    print("\n".join(out))
+    return state["warn"]
+
+
+# --------------------------------------------------------------------------------------
+# zv-doctor: bench --site <site|all> zv-doctor   (exit code 1 if any site needs attention)
+# --------------------------------------------------------------------------------------
+
+@click.command("zv-doctor")
+@click.option("--site", "site_name", help="Frappe site to check (or: bench --site <site|all> zv-doctor).")
+@pass_context
+def doctor(context, site_name: str | None = None):
+    """Health check: scheduler (paused/disabled/stalled), host_name, permission policy."""
+    import os as _os
+
+    sites = [site_name] if site_name else list(getattr(context, "sites", None) or [])
+    if not sites and _os.environ.get("FRAPPE_SITE"):
+        sites = [_os.environ["FRAPPE_SITE"]]
+    if not sites:
+        click.echo("No site given. Run as: bench --site <site|all> zv-doctor")
+        return
+    worst = 0
+    for site in sites:
+        frappe.init(site=site)
+        frappe.connect()
+        try:
+            worst = max(worst, _doctor_site(site))
+        finally:
+            frappe.destroy()
+    if worst:
+        raise SystemExit(1)
 
 # cli.py
 
