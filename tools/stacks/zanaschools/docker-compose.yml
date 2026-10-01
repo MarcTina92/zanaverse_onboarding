@@ -1,0 +1,195 @@
+#name: __STACK__
+
+secrets:
+  mariadb_root_password:
+    file: ./secrets/mariadb_root_password.txt
+
+services:
+  frontend:
+    image: nginx:1.25-alpine
+    container_name: __STACK__-frontend
+    restart: unless-stopped
+    depends_on: [backend, socketio]
+    volumes:
+      - ./frappe-bench:/var/www/html:ro
+      - ./frappe-bench:/home/frappe/frappe-bench:ro
+      - ./nginx/site.conf:/etc/nginx/conf.d/default.conf:ro
+    networks:
+      - default
+      - nginx-proxy-net
+    environment:
+      VIRTUAL_HOST: "__HOSTS__"   # comma-separated: every school address served by this stack
+      VIRTUAL_PORT: "80"
+      CERT_NAME: "zanaverse-wildcards"
+
+  mariadb:
+    image: mariadb:10.6
+    container_name: __STACK__-mariadb
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD_FILE: /run/secrets/mariadb_root_password
+    secrets:
+      - mariadb_root_password
+    volumes:
+      - mariadb_data:/var/lib/mysql
+    healthcheck:
+      test: ["CMD-SHELL", "mysqladmin ping -uroot -p$$(cat /run/secrets/mariadb_root_password) -h 127.0.0.1 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+
+  redis-cache:
+    image: redis:alpine
+    container_name: __STACK__-redis-cache
+    restart: unless-stopped
+
+  redis-queue:
+    image: redis:alpine
+    container_name: __STACK__-redis-queue
+    restart: unless-stopped
+    command: ["redis-server","--appendonly","yes"]
+    volumes:
+      - redis-queue-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 5
+
+  redis-socketio:
+    image: redis:alpine
+    container_name: __STACK__-redis-socketio
+    restart: unless-stopped
+
+  backend:
+    image: zanaschools-runtime:v16
+    container_name: __STACK__-backend
+    hostname: __STACK__
+    restart: unless-stopped
+    working_dir: /home/frappe/frappe-bench
+    volumes:
+      - ./frappe-bench:/home/frappe/frappe-bench
+    command: ["bash", "-lc", "cd /home/frappe/frappe-bench/sites && exec /home/frappe/frappe-bench/env/bin/gunicorn --chdir=/home/frappe/frappe-bench/sites --bind=0.0.0.0:8000 --threads=4 --workers=2 --worker-class=gthread --worker-tmp-dir=/dev/shm --timeout=120 --preload frappe.app:application"]
+    environment:
+      SITE_NAME: ${SITE_NAME}
+      BENCH_NAME: frappe-bench
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      REDIS_SOCKETIO: redis-socketio:6379
+      MARIADB_HOST: mariadb
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_healthy
+      redis-socketio:
+        condition: service_started
+    healthcheck:
+      test: ["CMD-SHELL", "curl -fsS -H \"Host: $$SITE_NAME\" http://127.0.0.1:8000/api/method/ping >/dev/null || exit 1"]
+      interval: 15s
+      timeout: 5s
+      retries: 20
+
+  scheduler:
+    image: zanaschools-runtime:v16
+    container_name: __STACK__-scheduler
+    restart: unless-stopped
+    working_dir: /home/frappe/frappe-bench
+    volumes:
+      - ./frappe-bench:/home/frappe/frappe-bench
+    command: bash -lc "cd /home/frappe/frappe-bench && bench schedule"
+    environment:
+      SITE_NAME: ${SITE_NAME}
+      BENCH_NAME: frappe-bench
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      REDIS_SOCKETIO: redis-socketio:6379
+      MARIADB_HOST: mariadb
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_healthy
+      redis-socketio:
+        condition: service_started
+
+  worker-short:
+    image: zanaschools-runtime:v16
+    container_name: __STACK__-worker-short
+    restart: unless-stopped
+    working_dir: /home/frappe/frappe-bench
+    volumes:
+      - ./frappe-bench:/home/frappe/frappe-bench
+    command: bash -lc "cd /home/frappe/frappe-bench && bench worker --queue default,short"
+    environment:
+      SITE_NAME: ${SITE_NAME}
+      BENCH_NAME: frappe-bench
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      REDIS_SOCKETIO: redis-socketio:6379
+      MARIADB_HOST: mariadb
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_healthy
+      redis-socketio:
+        condition: service_started
+
+  worker-long:
+    image: zanaschools-runtime:v16
+    container_name: __STACK__-worker-long
+    restart: unless-stopped
+    working_dir: /home/frappe/frappe-bench
+    volumes:
+      - ./frappe-bench:/home/frappe/frappe-bench
+    command: bash -lc "cd /home/frappe/frappe-bench && bench worker --queue long"
+    environment:
+      SITE_NAME: ${SITE_NAME}
+      BENCH_NAME: frappe-bench
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      REDIS_SOCKETIO: redis-socketio:6379
+      MARIADB_HOST: mariadb
+    depends_on:
+      mariadb:
+        condition: service_healthy
+      redis-cache:
+        condition: service_started
+      redis-queue:
+        condition: service_healthy
+      redis-socketio:
+        condition: service_started
+
+  socketio:
+    image: zanaschools-runtime:v16
+    container_name: __STACK__-socketio
+    restart: unless-stopped
+    working_dir: /home/frappe/frappe-bench
+    volumes:
+      - ./frappe-bench:/home/frappe/frappe-bench
+    command: >-
+      bash -lc "cd /home/frappe/frappe-bench &&
+                node apps/frappe/socketio.js"
+    environment:
+      SITE_NAME: ${SITE_NAME}
+      BENCH_NAME: frappe-bench
+      REDIS_SOCKETIO: redis-socketio:6379
+      MARIADB_HOST: mariadb
+    depends_on:
+      redis-socketio:
+        condition: service_started
+
+volumes:
+  mariadb_data:
+  redis-queue-data:
+
+networks:
+  nginx-proxy-net:
+    external: true
