@@ -1184,12 +1184,13 @@ def _doctor_site(site):
         bad("Site is in maintenance mode")
     else:
         ok("Scheduler enabled")
-        last = frappe.db.sql("select max(creation) from `tabScheduled Job Log`")[0][0]
+        # last_execution is updated on every run (frequent jobs too); Scheduled Job Log is not
+        last = frappe.db.sql("select max(last_execution) from `tabScheduled Job Type` where stopped = 0")[0][0]
         if not last:
             bad("No scheduled job has ever run (workers/scheduler process down?)")
         else:
             mins = int((now_datetime() - last).total_seconds() // 60)
-            (ok if mins <= 60 else bad)(f"Last scheduled job ran {mins} min ago")
+            (ok if mins <= 15 else bad)(f"Background jobs last ran {mins} min ago" + ("" if mins <= 15 else " - scheduler/workers stalled?"))
 
     # 2. host_name: PDFs (wkhtmltopdf) fetch logos/CSS through it
     hn = conf.get("host_name") or ""
