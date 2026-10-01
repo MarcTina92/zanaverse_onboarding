@@ -77,25 +77,24 @@ def apply_site_config(chain, dry_run, report):
 
 
 def apply_assets(chain, bp_dir_fn, dry_run, report):
+    """Copy files to the site's public /files/<name>. Settings/records reference that URL directly.
+    No File records are created: Frappe renames a file it finds already on disk, which made re-applies
+    leave duplicate records with hashed names."""
     for bp_name, bp in chain:
         for rel in bp.get("assets") or []:
             src = os.path.join(bp_dir_fn(bp_name), rel)
             name = os.path.basename(rel)
-            url = f"/files/{name}"
             if not os.path.exists(src):
                 report.append(f"MISSING asset {bp_name}/{rel}")
                 continue
-            exists = frappe.db.exists("File", {"file_url": url})
-            report.append(f"{'update' if exists else 'create':7} asset {url}  ({bp_name}/{rel})")
+            dest = frappe.get_site_path("public", "files", name)
+            report.append(f"{'update' if os.path.exists(dest) else 'create':7} asset /files/{name}  ({bp_name}/{rel})")
             if dry_run:
                 continue
             with open(src, "rb") as f:
                 data = f.read()
-            with open(frappe.get_site_path("public", "files", name), "wb") as f:
+            with open(dest, "wb") as f:
                 f.write(data)
-            if not exists:
-                frappe.get_doc({"doctype": "File", "file_name": name, "file_url": url,
-                                "is_private": 0}).insert(ignore_permissions=True)
 
 
 def apply_settings(chain, dry_run, report):
