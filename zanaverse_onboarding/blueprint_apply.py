@@ -62,7 +62,7 @@ def _import_records(bp_name, entry, installed, dry_run, report):
 def _collect_perms(bp_name, entry, installed, perm_sets):
     if set(entry.get("requires_apps") or []) - installed:
         return
-    with open(os.path.join(_bp_dir(bp_name), entry["file"]), encoding="utf-8") as f:
+    with open(_x.render_record_file(_bp_dir(bp_name), entry["file"]), encoding="utf-8") as f:
         data = json.load(f)
     for d in data if isinstance(data, list) else [data]:
         if d.get("doctype") == "Custom DocPerm":
