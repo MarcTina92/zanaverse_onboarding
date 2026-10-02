@@ -1,0 +1,34 @@
+services:
+  backend:
+    working_dir: /home/frappe/frappe-bench/sites
+    command:
+      - bash
+      - -lc
+      - >
+        export FRAPPE_SITE=__PRIMARY_HOST__
+        && export FRAPPE_SITES_PATH=/home/frappe/frappe-bench/sites
+        && export SITES_PATH=/home/frappe/frappe-bench/sites
+        && export PYTHONPATH=/home/frappe/frappe-bench/apps
+        && /home/frappe/frappe-bench/env/bin/gunicorn
+        -w 3 -k gthread --threads 8 --timeout 120
+        -b 0.0.0.0:8000
+        frappe.app:application
+    environment:
+      - FRAPPE_SITE=__PRIMARY_HOST__
+      - FRAPPE_SITES_PATH=/home/frappe/frappe-bench/sites
+      - SITES_PATH=/home/frappe/frappe-bench/sites
+      - PYTHONPATH=/home/frappe/frappe-bench/apps
+      # 👇 let nginx-proxy point to Gunicorn (like demo/dev)
+#      - VIRTUAL_HOST=__HOSTS__
+#      - VIRTUAL_PORT=8000
+      - CERT_NAME=__CERT_NAME__
+#      - FRAPPE_SITE=__PRIMARY_HOST__
+#      - FRAPPE_SITES_PATH=/home/frappe/frappe-bench/sites
+#      - SITES_PATH=/home/frappe/frappe-bench/sites
+#      - PYTHONPATH=/home/frappe/frappe-bench/apps
+    restart: unless-stopped
+    healthcheck:
+      test: ["CMD", "bash", "-lc", "curl -sf -H 'Host: __PRIMARY_HOST__' http://127.0.0.1:8000/api/method/ping >/dev/null || exit 1"]
+      interval: 30s
+      timeout: 5s
+      retries: 5
