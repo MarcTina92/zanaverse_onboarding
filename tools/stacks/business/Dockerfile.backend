@@ -1,0 +1,23 @@
+FROM frappe/bench:latest
+# Install Python 3.14.2 via pyenv (matches staging / prod v16 runtime)
+RUN cd $(pyenv root)/plugins/python-build && git pull && pyenv install -s 3.14.2
+
+# Download NLTK/textblob corpora needed by Helpdesk article search
+# (frappe user's HOME is not volume-mounted, so this persists across container rebuilds)
+RUN pip install --no-cache-dir --user textblob nltk \
+    && python3 -m textblob.download_corpora \
+    && python3 -c "import nltk; nltk.download('punkt_tab'); nltk.download('averaged_perceptron_tagger_eng')"
+
+# Make Frappe importable for gunicorn
+ENV PYTHONUNBUFFERED=1 \
+    PYTHONPATH=/home/frappe/frappe-bench/env/lib/python3.14/site-packages:/home/frappe/frappe-bench/apps/frappe:/home/frappe/frappe-bench/apps:/home/frappe/frappe-bench/sites \
+    FRAPPE_ENV=production
+WORKDIR /home/frappe/frappe-bench
+# Install gunicorn globally (works regardless of venv paths)
+RUN python3 -m pip install --no-cache-dir "gunicorn>=21,<22"
+# Tunables: WORKERS, THREADS, TIMEOUT
+CMD ["bash","-lc","exec python3 -m gunicorn -b 0.0.0.0:8000 \
+  -w ${WORKERS:-2} -k gthread --threads ${THREADS:-2} \
+  --timeout ${TIMEOUT:-120} --max-requests 500 --max-requests-jitter 50 \
+  --access-logfile - --log-level info \
+  frappe.app:application"]
