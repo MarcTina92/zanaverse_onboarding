@@ -102,19 +102,26 @@ def apply_settings(chain, dry_run, report):
     for _, bp in chain:
         merged = _merge(merged, bp.get("settings"))
     for target, fields in _render(merged).items():
-        doctype, _, name = target.partition(":")
-        single = frappe.get_meta(doctype).issingle
-        if not single and not frappe.db.exists(doctype, name):
+        if "|" in target:   # "DocType|field=value": every record whose field equals value (e.g. a menu row by label)
+            doctype, _, cond = target.partition("|")
+            key, _, value = cond.partition("=")
+            names, single = frappe.get_all(doctype, filters={key.strip(): value.strip()}, pluck="name"), False
+        else:
+            doctype, _, name = target.partition(":")
+            single = frappe.get_meta(doctype).issingle
+            names = [name] if single or frappe.db.exists(doctype, name) else []
+        if not names:
             report.append(f"skip    settings {target} (not found)")
             continue
         for field, val in (fields or {}).items():
-            report.append(f"set     {target}.{field} = {val!r}")
+            report.append(f"set     {target}.{field} = {val!r}" + (f"  ({len(names)} records)" if len(names) > 1 else ""))
             if dry_run:
                 continue
-            if single:
-                frappe.db.set_single_value(doctype, field, val)
-            else:
-                frappe.db.set_value(doctype, name, field, val)
+            for n in names:
+                if single:
+                    frappe.db.set_single_value(doctype, field, val)
+                else:
+                    frappe.db.set_value(doctype, n, field, val)
 
 
 def only_missing(path, data, bp_name, rel, report):
