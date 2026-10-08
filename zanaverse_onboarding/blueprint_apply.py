@@ -106,6 +106,25 @@ def _setup_company(company, dry_run, report):
         })
     finally:
         frappe.flags.mute_emails = False
+    _unfuture_scheduled_jobs(company["timezone"], report)
+
+
+def _unfuture_scheduled_jobs(tz, report):
+    """Frappe stamps the job list in its default timezone (Asia/Kolkata) before setup sets the
+    site's own, so on sites west of India every job looks hours in the future and sits idle.
+    Back-dates only future-dated rows. Runs once, at site creation (setup is skipped afterwards)."""
+    from datetime import datetime, timezone
+    from frappe.utils import add_days
+    from frappe.utils.data import convert_utc_to_timezone
+    now = convert_utc_to_timezone(datetime.now(timezone.utc).replace(tzinfo=None), tz).replace(tzinfo=None)
+    cond = "creation > %s or last_execution > %s"
+    future = frappe.db.sql(f"select count(*) from `tabScheduled Job Type` where {cond}", (now, now))[0][0]
+    if future:
+        y = add_days(now, -1)
+        frappe.db.sql(f"update `tabScheduled Job Type` set creation=%s, last_execution=%s where {cond}", (y, y, now, now))
+        report.append(f"fix     scheduler: {future} future-dated jobs back-dated")
+    else:
+        report.append("ok      scheduler: no future-dated jobs")
 
 
 def _role_profiles(profiles, dry_run, report):
