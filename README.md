@@ -1,5 +1,7 @@
 ### Zanaverse Onboarding
 
+> Operations (deploys, new sites, rollback, gotchas): see [RUNBOOK.md](RUNBOOK.md).
+
 Client onboarding with blueprints
 
 ### Installation

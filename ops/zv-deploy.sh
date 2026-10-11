@@ -119,8 +119,10 @@ for a in "${APPS[@]}"; do
 
   OLD[$a]=$(git -C "$d" rev-parse HEAD); NEW[$a]=$(git -C "$d" rev-parse "$rm/$br")
   incoming=$(git -C "$d" log --oneline "HEAD..$rm/$br" || true)
-  printf '  %-22s %-10s %s -> %s  %s\n' "$a" "$br" "${OLD[$a]:0:7}" "${NEW[$a]:0:7}" \
-    "$([[ -z "$incoming" ]] && echo '(up to date)' || echo "($(wc -l <<<"$incoming") incoming)")"
+  if (( ahead > 0 )); then label="($ahead ahead - not pushed)"
+  elif [[ -n "$incoming" ]]; then label="($(wc -l <<<"$incoming") incoming)"
+  else label="(up to date)"; fi
+  printf '  %-22s %-10s %s -> %s  %s\n' "$a" "$br" "${OLD[$a]:0:7}" "${NEW[$a]:0:7}" "$label"
   [[ -z "$incoming" ]] || sed 's/^/        /' <<<"$incoming"
 done
 
