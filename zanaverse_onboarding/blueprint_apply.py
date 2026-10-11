@@ -128,11 +128,21 @@ def _unfuture_scheduled_jobs(tz, report):
 
 
 def _role_profiles(profiles, dry_run, report):
+    """Two forms: `roles: [...]` (explicit list, exactly these) or `exclude_roles: [...]`
+    (every enabled desk role except these, so new business roles are picked up automatically)."""
     for prof in profiles or []:
-        exclude = set(prof.get("exclude_roles") or []) | {"Administrator", "Guest", "All"}
-        roles = sorted(frappe.get_all("Role", filters={"desk_access": 1, "disabled": 0}, pluck="name"))
-        roles = [r for r in roles if r not in exclude]
-        report.append(f"profile {prof['name']}: {len(roles)} roles (excluding {sorted(exclude - {'Administrator', 'Guest', 'All'})})")
+        if prof.get("roles"):
+            wanted = list(dict.fromkeys(prof["roles"]))
+            missing = [r for r in wanted if not frappe.db.exists("Role", r)]
+            roles = sorted(r for r in wanted if r not in missing)
+            report.append(f"profile {prof['name']}: {len(roles)} roles (explicit: {roles})")
+            if missing:
+                report.append(f"warn    profile {prof['name']}: roles not on this site, skipped: {missing}")
+        else:
+            exclude = set(prof.get("exclude_roles") or []) | {"Administrator", "Guest", "All"}
+            roles = sorted(frappe.get_all("Role", filters={"desk_access": 1, "disabled": 0}, pluck="name"))
+            roles = [r for r in roles if r not in exclude]
+            report.append(f"profile {prof['name']}: {len(roles)} roles (excluding {sorted(exclude - {'Administrator', 'Guest', 'All'})})")
         if dry_run:
             continue
         doc = frappe.get_doc("Role Profile", prof["name"]) if frappe.db.exists("Role Profile", prof["name"]) else frappe.new_doc("Role Profile")
